@@ -1,0 +1,22 @@
+<assembly
+        xmlns="http://maven.apache.org/ASSEMBLY/2.1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0 http://maven.apache.org/xsd/assembly-2.1.0.xsd">
+    <id>bin</id>
+    <formats>
+        <format>zip</format>
+    </formats>
+    <fileSets>
+        <fileSet>
+            <includes>
+                <include>${project.basedir}/firebase.json</include>
+                <include>${project.basedir}/pom.xml</include>
+                <include>${project.basedir}/api.yaml</include>
+                <include>${project.basedir}/*.pdf</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <directory>${project.basedir}/src/</directory>
+        </fileSet>
+    </fileSets>
+</assembly>

@@ -1,0 +1,370 @@
+body {
+    font-family: system-ui, sans-serif;
+    margin: 0;
+}
+
+a {
+    color: initial;
+    text-decoration: none;
+}
+
+.header-menu {
+    background: #4a9cc2;
+    display: flex;
+    height: 64px;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.header-title {
+    color: white;
+    font-size: 32px;
+    line-height: 56px;
+    padding-left: 16px;
+}
+
+.header-icon {
+    cursor: pointer;
+    line-height: 72px;
+}
+
+.header-icon > img {
+    margin-right: 16px;
+}
+
+.header-cart-badge {
+    background: #c34b61;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 12px;
+    height: 16px;
+    line-height: 16px;
+    position: absolute;
+    right: 96px;
+    text-align: center;
+    top: 12px;
+    width: 16px;
+}
+
+.page {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 700px;
+}
+
+.flights-grid {
+    display: grid;
+    grid-column-gap: 16px;
+    grid-row-gap: 16px;
+    grid-template-columns: 1fr 1fr;
+    padding: 8px;
+}
+
+.flights-item {
+    cursor: pointer;
+    width: 100%;
+}
+
+.flights-item > img {
+    aspect-ratio: 16/9;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    object-fit: cover;
+    width: 100%;
+}
+
+.flights-item > div {
+    padding: 8px;
+}
+
+.flights-item-name {
+    font-size: 36px;
+}
+
+.flights-item-location {
+    color: grey;
+}
+
+.flight-time {
+    display: flex;
+    height: 48px;
+    line-height: 48px;
+}
+
+.flight-time > div {
+    min-width: 200px;
+}
+
+.flight-times-button-book {
+    background: #006994;
+    border-radius: 4px;
+    color: white;
+    height: 32px;
+    line-height: 32px;
+    margin: 8px;
+    margin-left: 64px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.seats-type {
+    font-weight: bold;
+    width: 128px;
+}
+
+.seats {
+    display: grid;
+    margin-left: auto;
+    margin-right: auto;
+    width: 500px;
+}
+
+.seat {
+    display: flex;
+    height: 48px;
+    justify-content: center;
+    line-height: 48px;
+}
+
+.seats-First {
+    grid-template-columns: [A] 1fr [B] 1fr 1fr [C] 1fr [D] 1fr 1fr [E] 1fr [F] 1fr;
+}
+
+.seats-First .seats-button {
+    width: 40px;
+}
+
+.seats-Business {
+    grid-template-columns: [A] 1fr [B] 1fr 1fr [C] 1fr [D] 1fr [E] 1fr 1fr [F] 1fr [G] 1fr;
+}
+
+.seats-Business .seats-button {
+    width: 35px;
+}
+
+.seats-Economy {
+    grid-template-columns: [A] 1fr [B] 1fr [C] 1fr 1fr [D] 1fr [E] 1fr [F] 1fr [G] 1fr 1fr [H] 1fr [I] 1fr [J] 1fr;
+}
+
+.seats-Economy .seats-button {
+    width: 30px;
+}
+
+.seat-A {
+    grid-column: A;
+}
+
+.seat-B {
+    grid-column: B;
+}
+
+.seat-C {
+    grid-column: C;
+}
+
+.seat-D {
+    grid-column: D;
+}
+
+.seat-E {
+    grid-column: E;
+}
+
+.seat-F {
+    grid-column: F;
+}
+
+.seat-G {
+    grid-column: G;
+}
+
+.seat-H {
+    grid-column: H;
+}
+
+.seat-I {
+    grid-column: I;
+}
+
+.seat-J {
+    grid-column: J;
+}
+
+.seats-button {
+    background: #006994;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    font-family: system-ui, sans-serif;
+    height: 32px;
+    justify-content: center;
+    line-height: 32px;
+    margin: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    width: 40px;
+}
+
+.quote {
+    display: grid;
+    grid-gap: 8px;
+    grid-template-columns: 1fr 200px 100px 50px 75px;
+    line-height: 48px;
+}
+
+.quote-time {
+    text-align: right;
+}
+
+.quote-seat-type {
+    text-align: right;
+}
+
+.quote-seat-name {
+    text-align: right;
+}
+
+.quote-remove-button {
+    background: #006994;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    font-family: system-ui, sans-serif;
+    height: 32px;
+    line-height: 32px;
+    margin: 8px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.quote-confirm-button {
+    align-items: center;
+    background: #006994;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    font-family: system-ui, sans-serif;
+    height: 32px;
+    justify-content: center;
+    line-height: 32px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 64px;
+    padding-left: 8px;
+    padding-right: 8px;
+    width: 150px;
+}
+
+.booking {
+    border: black 1px solid;
+    margin-bottom: 16px;
+    padding: 8px;
+}
+
+.booking-header {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 16px;
+}
+
+.ticket {
+    display: grid;
+    grid-template-columns: 1fr 200px 100px 50px 75px;
+}
+
+.login {
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 128px;
+}
+
+.login-button {
+    align-items: center;
+    background-color: #4a9cc2;
+    border: none;
+    border-radius: 2px;
+    box-sizing: border-box;
+    color: #fff;
+    cursor: pointer;
+    display: inline-flex;
+    height: 40px;
+    justify-content: center;
+    margin-top: 4px;
+    outline: none;
+    overflow: hidden;
+    padding: 0 24px;
+    position: relative;
+    user-select: none;
+    white-space: nowrap;
+    width: 100%;
+    vertical-align: middle;
+}
+
+.textfield {
+    position: relative;
+    margin: 45px 0;
+}
+
+textarea {
+    resize: none;
+}
+
+input, textarea {
+    background: none;
+    font-size: 18px;
+    padding: 10px 10px 10px 5px;
+    display: block;
+    width: 320px;
+    border: none;
+    border-radius: 0;
+    border-bottom: 1px solid #777;
+}
+
+input:focus, textarea:focus {
+    outline: none;
+}
+
+input:focus ~ label, textarea:focus ~ label, input:valid ~ label, textarea:valid ~ label {
+    top: -14px;
+    font-size: 12px;
+    color: #4a9cc2;
+}
+
+input:focus ~ .bar:before, textarea:focus ~ .bar:before {
+    width: 335px;
+}
+
+label {
+    color: #777;
+    font-size: 16px;
+    font-weight: normal;
+    position: absolute;
+    pointer-events: none;
+    left: 5px;
+    top: 10px;
+    transition: 300ms ease all;
+}
+
+.bar {
+    position: relative;
+    display: block;
+    width: 320px;
+}
+
+.bar:before {
+    content: '';
+    height: 2px;
+    width: 0;
+    bottom: 0;
+    position: absolute;
+    background: #2196f3;
+    transition: 300ms ease all;
+    left: 0;
+}

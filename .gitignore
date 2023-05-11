@@ -1,0 +1,38 @@
+# Compiled class files
+*.class
+
+# Log files
+*.log
+
+# Maven specific files
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# Gradle specific files
+.gradle/
+build/
+
+# IDE files (Eclipse, IntelliJ, etc.)
+.settings/
+.classpath
+.project
+.idea/
+
+# Google Cloud specific files
+# App Engine
+appengine-generated/
+
+# Cloud Functions
+cloudfunctions/
+.gcloudignore
+
+# Cloud Storage (optional, remove if not used)
+# Replace "bucket-name" with the actual bucket name
+gs://bucket-name/
+
+# Google Cloud configuration files (optional, remove if not used)
+google-cloud.json

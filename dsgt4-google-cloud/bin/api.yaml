@@ -1,0 +1,323 @@
+openapi: 3.0.3
+info:
+  title: GTickets - API
+  version: 1.0.0
+paths:
+  /api/getFlights:
+    get:
+      summary: Get all flights
+      responses:
+        '200':
+          description: A list of flights
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Flight'
+              example:
+                - airline: reliable.westeurope.cloudapp.azure.com
+                  flightId: 8121f6b6-8f87-494d-b985-966025dc9c7b
+                  name: Dubai
+                  location: BRU - DXB
+                  image: http://reliable.westeurope.cloudapp.azure.com/dubai.jpg
+  /api/getFlight:
+    get:
+      summary: Get flight by ID
+      parameters:
+        - name: airline
+          in: query
+          description: ID of the airline
+          required: true
+          schema:
+            type: string
+        - name: flightId
+          in: query
+          description: ID of the flight
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A single flight
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Flight'
+              example:
+                airline: reliable.westeurope.cloudapp.azure.com
+                flightId: 8121f6b6-8f87-494d-b985-966025dc9c7b
+                name: Dubai
+                location: BRU - DXB
+                image: http://reliable.westeurope.cloudapp.azure.com/dubai.jpg
+        '404':
+          description: Flight not found
+  /api/getFlightTimes:
+    get:
+      summary: Get all times for a flight
+      parameters:
+        - name: airline
+          in: query
+          description: ID of the airline
+          required: true
+          schema:
+            type: string
+        - name: flightId
+          in: query
+          description: ID of the flight
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of flight times, ordered by the time, i.e., the smallest time should be first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+              example:
+                - 2022-09-26T19:30
+        '404':
+          description: Flight not found
+  /api/getAvailableSeats:
+    get:
+      summary: Get all available seats for a flight at a specific time
+      parameters:
+        - name: airline
+          in: query
+          description: ID of the airline
+          required: true
+          schema:
+            type: string
+        - name: flightId
+          in: query
+          description: ID of the flight
+          required: true
+          schema:
+            type: string
+        - name: time
+          in: query
+          description: time of the flight
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of seats, ordered by their appearence in the plane, i.e., first the first row, going from column A to x.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Seat'
+              example:
+                Economy:
+                  - airline: reliable.westeurope.cloudapp.azure.com
+                    flightId: 8121f6b6-8f87-494d-b985-966025dc9c7b
+                    seatId: 62a61c7b-71c2-4725-8937-0061fc6d86d2
+                    time: 2022-09-26T19:30
+                    type: Economy
+                    name: 5B
+                    price: 123.56
+                    ticket: null
+  /api/getSeat:
+    get:
+      summary: Get seat by ID
+      parameters:
+        - name: airline
+          in: query
+          description: ID of the airline
+          required: true
+          schema:
+            type: string
+        - name: flightId
+          in: query
+          description: ID of the flight
+          required: true
+          schema:
+            type: string
+        - name: seatId
+          in: query
+          description: ID of the seat
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A single seat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Seat'
+              example:
+                airline: reliable.westeurope.cloudapp.azure.com
+                flightId: 8121f6b6-8f87-494d-b985-966025dc9c7b
+                seatId: 62a61c7b-71c2-4725-8937-0061fc6d86d2
+                time: 2022-09-26T19:30
+                type: Economy
+                name: 5B
+                price: 123.56
+                ticket: null
+        '404':
+          description: Seat not found
+  /api/confirmQuotes:
+    post:
+      summary: Create a new booking
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Quote'
+      responses:
+        '204':
+          description: Successfully submitted
+  /api/getBookings:
+    get:
+      summary: Get bookings from customer
+      responses:
+        '200':
+          description: A list of bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+              example:
+                - id: 2d392a2e-8bd7-488b-9dda-b12c25c15446
+                  time: 2022-09-26T19:30
+                  tickets:
+                    - airline: reliable.westeurope.cloudapp.azure.com
+                      flightId: 8121f6b6-8f87-494d-b985-966025dc9c7b
+                      seatId: 62a61c7b-71c2-4725-8937-0061fc6d86d2
+                      ticketId: 10e9f85f-02d0-4f2a-98dc-004329240efd
+                      customer: bert.lagaisse@cs.kuleuven.be
+                  customer: bert.lagaisse@cs.kuleuven.be
+  /api/getAllBookings:
+    get:
+      summary: Get all bookings
+      description: Only managers can request all bookings, other customers can only retrieve their own bookings via getBookings.
+      responses:
+        '200':
+          description: A list of bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+              example:
+                - id: 2d392a2e-8bd7-488b-9dda-b12c25c15446
+                  time: 2022-09-26T19:30
+                  tickets:
+                    - airline: reliable.westeurope.cloudapp.azure.com
+                      flightId: 8121f6b6-8f87-494d-b985-966025dc9c7b
+                      seatId: 62a61c7b-71c2-4725-8937-0061fc6d86d2
+                      ticketId: 10e9f85f-02d0-4f2a-98dc-004329240efd
+                      customer: bert.lagaisse@cs.kuleuven.be
+                  customer: bert.lagaisse@cs.kuleuven.be
+      security:
+        - openId:
+            - email
+            - manager
+  /api/getBestCustomers:
+    get:
+      summary: Get the best customer
+      description: Return the best customer (highest number of tickets, return all of them if multiple customers have an equal amount). Only managers can use this function.
+      responses:
+        '200':
+          description: A list of customers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+              example:
+                - distributedsystems@cs.kuleuven.be
+      security:
+        - openId:
+            - email
+            - manager
+
+security:
+  - openId:
+      - email
+
+components:
+  schemas:
+    Flight:
+      type: object
+      properties:
+        airline:
+          type: string
+        flightId:
+          type: string
+        name:
+          type: string
+        location:
+          type: string
+        image:
+          type: string
+    Seat:
+      type: object
+      properties:
+        airline:
+          type: string
+        flightId:
+          type: string
+        seatId:
+          type: string
+        time:
+          type: string
+        name:
+          type: string
+        price:
+          type: string
+    Quote:
+      type: object
+      properties:
+        airline:
+          type: string
+        flightId:
+          type: string
+        seatId:
+          type: string
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: string
+        airline:
+          type: string
+        flightId:
+          type: string
+        seatId:
+          type: string
+        customer:
+          type: string
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+        time:
+          type: string
+        customer:
+          type: string
+        tickets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ticket'
+
+  securitySchemes:
+    openId:
+      type: openIdConnect
+      openIdConnectUrl: http://127.0.0.1:8081/auth/.well-known/openid-configuration
+
