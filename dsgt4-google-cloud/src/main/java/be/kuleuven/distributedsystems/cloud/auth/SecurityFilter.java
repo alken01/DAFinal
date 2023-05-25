@@ -27,6 +27,7 @@ public class SecurityFilter extends OncePerRequestFilter {
         // TODO: (level 2) verify Identity Token
 
         var user = new User("test@example.com", "");
+
         SecurityContext context = SecurityContextHolder.getContext();
         context.setAuthentication(new FirebaseAuthentication(user));
 
@@ -41,7 +42,6 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     private static class FirebaseAuthentication implements Authentication {
         private final User user;
-
         FirebaseAuthentication(User user) {
             this.user = user;
         }
