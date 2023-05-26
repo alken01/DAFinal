@@ -13,8 +13,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -22,28 +21,34 @@ import java.util.concurrent.ConcurrentMap;
 @RestController
 @RequestMapping("/api")
 public class GTicketsController {
+    // TODO: Hide the API key in a configuration file
+    // the url to get the flights from the airlines
     private final String reliableAirlineEndpoint = "http://reliable.westeurope.cloudapp.azure.com";
     private final String unreliableAirlineEndpoint = "http://unreliable.eastus.cloudapp.azure.com";
-    // TODO: Hide the API key in a configuration file
     private final String apiKey = "Iw8zeveVyaPNWonPNaU0213uw3g6Ei";
-    private final RestTemplate restTemplate;
-    private final Gson gson;
+    private final RestTemplate restTemplate = new RestTemplateBuilder()
+            .setConnectTimeout(Duration.ofSeconds(10))
+            .setReadTimeout(Duration.ofSeconds(10))
+            .build();
+    private final Gson gson = new Gson();
     private static ConcurrentMap<String, JsonArray> cachedFlights;
 
     public GTicketsController() {
-        restTemplate = new RestTemplateBuilder()
-                .setConnectTimeout(Duration.ofSeconds(10))
-                .setReadTimeout(Duration.ofSeconds(10))
-                .build();
-        this.gson = new Gson();
         // initialize the cache
-        this.cachedFlights = new ConcurrentHashMap<>();
+        cachedFlights = new ConcurrentHashMap<>();
         getFlights();
     }
 
     @GetMapping("/getFlights")
     public ResponseEntity<String> getFlights() {
-        // the url to get the flights from the airlines
+        // check if the flights are already cached
+        // TODO: maybe add a timeout? if more flights are added in the external API
+        //  the cache will not be updated as it is currently implemented
+        if (cachedFlights.containsKey("flights")) {
+            // return the cached flights
+            return ResponseEntity.ok(gson.toJson(cachedFlights.get("flights")));
+        }
+
         String reliableUrl = reliableAirlineEndpoint + "/flights?key=" + apiKey;
         String unreliableUrl = unreliableAirlineEndpoint + "/flights?key=" + apiKey;
 
@@ -60,6 +65,97 @@ public class GTicketsController {
         return ResponseEntity.ok(gson.toJson(flightsArray));
     }
 
+    @GetMapping("/getFlight")
+    public ResponseEntity<String> getFlight(@RequestParam String airline, @RequestParam String flightId) {
+        // get the url in the cachedFlights
+        String flightURL = "http://" + airline + getFlightLink(airline, flightId, "self");
+
+        // get the flight from the url
+        JsonObject flightsObject = getResponse(flightURL);
+
+        // return the flight
+        return ResponseEntity.ok(flightsObject.toString());
+    }
+
+    @GetMapping("/getFlightTimes")
+    public ResponseEntity<String[]> getFlightTimes(@RequestParam String airline, @RequestParam String flightId) {
+        // get the url in the cachedFlights
+        String flightURL = "http://" + airline + getFlightLink(airline, flightId, "times");
+
+        // get the flight times from the flight as a string array
+        JsonObject json = getResponse(flightURL);
+        JsonArray stringList = json.getAsJsonObject("_embedded").getAsJsonArray("stringList");
+
+        String[] stringArray = new String[stringList.size()];
+        for (int i = 0; i < stringList.size(); i++) {
+            stringArray[i] = stringList.get(i).getAsString();
+        }
+
+        // Order the flight times and return them
+        Arrays.sort(stringArray);
+        return ResponseEntity.ok(stringArray);
+    }
+
+    @GetMapping("/getAvailableSeats")
+    public ResponseEntity<String> getAvailableSeats(@RequestParam String airline,
+                                                    @RequestParam String flightId, @RequestParam String time) {
+        // get the URL in the cachedFlights
+        String seatsURL = "http://" + airline + getFlightLink(airline, flightId, "seats").replace("{time}", time);
+        System.out.println("Seats URL: " + seatsURL);
+
+        // get the seats from the URL
+        JsonArray seatList = getResponse(seatsURL).getAsJsonObject("_embedded").getAsJsonArray("seats");
+
+        // group the seats based on type
+        Map<String, List<JsonObject>> seatsByType = new HashMap<>();
+        for (JsonElement seatElement : seatList) {
+            JsonObject seatObject = seatElement.getAsJsonObject();
+            String type = seatObject.get("type").getAsString();
+            if (!seatsByType.containsKey(type)) {
+                seatsByType.put(type, new ArrayList<>());
+            }
+            seatsByType.get(type).add(seatObject);
+        }
+
+        // sort the seats within each type based on name (if needed)
+        for (List<JsonObject> seats : seatsByType.values()) {
+            seats.sort(Comparator.comparing(o -> o.get("name").getAsString()));
+        }
+
+        // construct the final result in the requested format
+        JsonObject result = new JsonObject();
+        for (Map.Entry<String, List<JsonObject>> entry : seatsByType.entrySet()) {
+            String type = entry.getKey();
+            List<JsonObject> seats = entry.getValue();
+            JsonArray seatArray = new JsonArray();
+            for (JsonObject seat : seats) {
+                seatArray.add(seat);
+            }
+            result.add(type, seatArray);
+        }
+
+        System.out.println("Formatted Seat Data: " + result);
+
+        // return the formatted seat data
+        return ResponseEntity.ok(gson.toJson(result));
+    }
+
+    @GetMapping("/getSeat")
+    public ResponseEntity<String> getSeat(@RequestParam String airline, @RequestParam String flightId,
+                                          @RequestParam String seatId) {
+        // get the seat url
+        String seatURL = "http://" + airline + "/flights/" + flightId + "/seats/" + seatId;
+
+        // get the seat from the url
+        JsonObject seat = getResponse(seatURL);
+        System.out.println("Seat: " + seat);
+
+        // return the seat
+        return ResponseEntity.ok(seat.toString());
+    }
+
+    // Helper methods
+
     private JsonArray getFlights(String url) {
         // get the flights from the airline
         JsonObject flightsObject = getResponse(url);
@@ -72,23 +168,19 @@ public class GTicketsController {
         return flightsArray;
     }
 
-    // Helper method to make sure we get the response from the airline
     private JsonObject getResponse(String url) {
         // Exponential backoff retry mechanism
-        long delayMs = 10; // initial delay
+        long delayMs = 10;
         int maxRetries = 5;
+        long maxDelayMs = 60000;
 
         for (int retries = 0; retries < maxRetries; retries++) {
             try {
                 // Make the API request to get the flights from the airline
                 ResponseEntity<String> reliableResponse = restTemplate.getForEntity(url, String.class);
                 return JsonParser.parseString(reliableResponse.getBody()).getAsJsonObject();
-            }
-            catch (HttpClientErrorException | HttpServerErrorException e) {
-                System.out.println("Retrying to get the flights from the airline");
-
+            } catch (HttpClientErrorException | HttpServerErrorException e) {
                 // Wait before making the next retry
-                long maxDelayMs = 60000;
                 delayMs = Math.min(delayMs * 2, maxDelayMs);
                 try {
                     Thread.sleep(delayMs);
@@ -96,7 +188,6 @@ public class GTicketsController {
                     Thread.currentThread().interrupt();
                 }
             } catch (Exception e) {
-                System.out.println(e);
                 // Handle other exceptions
                 e.printStackTrace();
                 break;
@@ -105,21 +196,6 @@ public class GTicketsController {
 
         // Fallback mechanism
         return new JsonObject();
-    }
-
-    @GetMapping("/getFlight")
-    public ResponseEntity<String> getFlight(@RequestParam String airline, @RequestParam String flightId) {
-        // get the url in the cachedFlights
-        String flightURL = "http://" + airline + getFlightLink(airline, flightId, "self");
-
-        // if the flightURL is null, the flight is not found
-        if (flightURL == null) return ResponseEntity.notFound().build();
-
-        // get the flight from the url
-        JsonObject flightsObject = getResponse(flightURL);
-
-        // return the flight
-        return ResponseEntity.ok(flightsObject.toString());
     }
 
     private static String getFlightLink(String airline, String flightId, String field) {
@@ -147,44 +223,7 @@ public class GTicketsController {
                 }
             }
         }
-        // Flight not found or link not available
         return null;
     }
 
-    @GetMapping("/getFlightTimes")
-    public ResponseEntity<String[]> getFlightTimes(@RequestParam String airline, @RequestParam String flightId) {
-        // get the url in the cachedFlights
-        String flightURL = "http://" + airline + getFlightLink(airline, flightId, "times");
-
-        // get the flight times from the flight as a string array
-        JsonObject json = getResponse(flightURL);
-        JsonArray stringList = json.getAsJsonObject("_embedded").getAsJsonArray("stringList");
-
-        String[] stringArray = new String[stringList.size()];
-        for (int i = 0; i < stringList.size(); i++) {
-            stringArray[i] = stringList.get(i).getAsString();
-        }
-
-        // Order the flight times and return them
-        Arrays.sort(stringArray);
-        return ResponseEntity.ok(stringArray);
-    }
-
-
-    @GetMapping("/getAvailableSeats")
-    public ResponseEntity<String> getAvailableSeats(@RequestParam String airline,
-                                                    @RequestParam String flightId, @RequestParam String time) {
-        // get the url in the cachedFlights
-        String flightURL = airline + getFlightLink(airline, flightId, "seats");
-
-        // replace time with time
-        flightURL = flightURL.replace("{time}", time);
-        System.out.println("Flight URL: " + flightURL);
-
-        // get the flight from the url
-        JsonObject flightJson = getResponse(flightURL);
-
-        // return the flight
-        return ResponseEntity.ok(flightJson.getAsString());
-    }
 }
