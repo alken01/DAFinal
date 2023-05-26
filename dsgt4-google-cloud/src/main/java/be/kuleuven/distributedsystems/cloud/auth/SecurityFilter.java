@@ -24,6 +24,7 @@ public class SecurityFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         // TODO: (level 1) decode Identity Token and assign correct email and role
+        // test comment for testing out GIT
         // TODO: (level 2) verify Identity Token
 
         var user = new User("test@example.com", "");
