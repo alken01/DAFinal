@@ -1,3 +1,6 @@
+# the api key
+config.properties
+
 # Compiled class files
 *.class
 
