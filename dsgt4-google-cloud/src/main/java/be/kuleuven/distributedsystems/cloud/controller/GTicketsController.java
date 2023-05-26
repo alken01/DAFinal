@@ -82,8 +82,7 @@ public class GTicketsController {
             try {
                 // Make the API request to get the flights from the airline
                 ResponseEntity<String> reliableResponse = restTemplate.getForEntity(url, String.class);
-                JsonObject jsonObject = JsonParser.parseString(reliableResponse.getBody()).getAsJsonObject();
-                return jsonObject;
+                return JsonParser.parseString(reliableResponse.getBody()).getAsJsonObject();
             }
             catch (HttpClientErrorException | HttpServerErrorException e) {
                 System.out.println("Retrying to get the flights from the airline");
@@ -157,11 +156,6 @@ public class GTicketsController {
         // get the url in the cachedFlights
         String flightURL = "http://" + airline + getFlightLink(airline, flightId, "times");
 
-        // if the flightURL is null, the flight is not found
-        if (flightURL == null) {
-            return ResponseEntity.notFound().build();
-        }
-
         // get the flight times from the flight as a string array
         JsonObject json = getResponse(flightURL);
         JsonArray stringList = json.getAsJsonObject("_embedded").getAsJsonArray("stringList");
@@ -185,11 +179,6 @@ public class GTicketsController {
 
         // replace time with time
         flightURL = flightURL.replace("{time}", time);
-
-        // if the flightURL is null, the flight is not found
-        if (flightURL == null) {
-            return ResponseEntity.notFound().build();
-        }
         System.out.println("Flight URL: " + flightURL);
 
         // get the flight from the url
