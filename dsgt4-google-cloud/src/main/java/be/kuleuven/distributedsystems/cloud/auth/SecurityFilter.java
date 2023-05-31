@@ -1,6 +1,9 @@
 package be.kuleuven.distributedsystems.cloud.auth;
 
 import be.kuleuven.distributedsystems.cloud.entities.User;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.exceptions.JWTDecodeException;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -23,15 +26,43 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        // TODO: (level 1) decode Identity Token and assign correct email and role
-        // TODO: (level 2) verify Identity Token
+        String header = request.getHeader("Authorization");
 
-        var user = new User("test@example.com", "");
-        SecurityContext context = SecurityContextHolder.getContext();
-        context.setAuthentication(new FirebaseAuthentication(user));
+        // Print the Authorization header
+        System.out.println("Authorization header: " + header);
+
+        if (header == null || !header.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String token = header.substring(7); // Extract token from header remove bearer
+
+
+        try {
+            // decode the token
+            DecodedJWT jwt = JWT.decode(token);
+            System.out.println("Authorization jwt: " + jwt);
+
+            // extract email and role from the token
+            String email = jwt.getClaim("email").asString();
+            System.out.println("Authorization mail: " + email);
+            String role = jwt.getClaim("role").asString(); // adjust this according to your token structure
+            System.out.println("Authorization role: " + role);
+
+            // create user and set in the authentication
+            User user = new User(email, role);
+            SecurityContext context = SecurityContextHolder.getContext();
+            context.setAuthentication(new FirebaseAuthentication(user));
+
+        } catch (JWTDecodeException exception){
+            //Invalid token
+            System.out.println("Invalid token");
+        }
 
         filterChain.doFilter(request, response);
     }
+
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
