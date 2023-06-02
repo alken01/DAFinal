@@ -1,15 +1,19 @@
 package be.kuleuven.distributedsystems.cloud.manager;
 
+import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Quote;
+import be.kuleuven.distributedsystems.cloud.entities.Ticket;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class QuoteManager {
+
+public class BookingManager {
+
     private static List<Quote> quotes;
 
-    public QuoteManager() {
+    public BookingManager() {
         quotes = new ArrayList<>();
     }
 
@@ -36,7 +40,22 @@ public class QuoteManager {
 
     }
 
-    public List<Quote> getAllQuotes() {
+    public static List<Quote> getAllQuotes() {
         return quotes;
     }
+
+
+    public static Ticket quote2Ticket(Quote quote, String customer, String bookingReference) {
+        return new Ticket(quote.getAirline(), quote.getFlightId(), quote.getSeatId(),
+                UUID.randomUUID(), customer, bookingReference);
+    }
+
+    public static void createBooking(List<Quote> quotes, String customer, Booking booking) {
+        for (Quote quote : quotes) {
+            Ticket ticket = quote2Ticket(quote, customer, booking.getId().toString());
+            booking.getTickets().add(ticket);
+        }
+    }
+
+
 }

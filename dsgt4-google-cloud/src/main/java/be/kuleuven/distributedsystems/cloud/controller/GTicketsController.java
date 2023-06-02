@@ -1,16 +1,19 @@
 package be.kuleuven.distributedsystems.cloud.controller;
 
+import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Quote;
-import be.kuleuven.distributedsystems.cloud.manager.QuoteManager;
+import be.kuleuven.distributedsystems.cloud.manager.BookingManager;
 import com.google.gson.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -25,7 +28,7 @@ public class GTicketsController {
     private final HashMap<String, WebClient> airlineEndpoints = new HashMap<>();
 
     private static List<Quote> quotes = new ArrayList<>();
-    private QuoteManager quoteManager;
+    private BookingManager bookingManager;
 
     public GTicketsController(WebClient.Builder webClientBuilder,  @Value("${api.key}") String apiKey,
                               @Value("${airline.endpoints}") String[] airlineEndpointsConfig) {
@@ -40,7 +43,7 @@ public class GTicketsController {
 
         // initialize the cachedFlights
         cachedFlights = new ConcurrentHashMap<>();
-        quoteManager = new QuoteManager();
+        bookingManager = new BookingManager();
     }
 
 
@@ -150,11 +153,58 @@ public class GTicketsController {
 
 
         //create quote
-        QuoteManager.createQuote(airline, flightId, seatId);
+        BookingManager.createQuote(airline, flightId, seatId);
 
         // return the seat
         return ResponseEntity.ok(seat.toString());
     }
+
+    @PostMapping("/api/confirmQuotes")
+    public ResponseEntity<String> confirmQuotes(@RequestBody List<Quote> quotes) throws IOException, InterruptedException {
+        //create the list of quotes
+        List<Quote> allQuotes = BookingManager.getAllQuotes();
+
+        // format quotes for the API
+        List<Map<String, String>> formattedQuotes = new ArrayList<>();
+        for (Quote quote : allQuotes) {
+            Map<String, String> formattedQuote = new HashMap<>();
+            formattedQuote.put("airline", quote.getAirline());
+            formattedQuote.put("flightId", quote.getFlightId().toString());
+            formattedQuote.put("seatId", quote.getSeatId().toString());
+            formattedQuotes.add(formattedQuote);
+        }
+
+        //make POST request
+        String confirmQuotesEndpoint = "http://localhost:8080/confirmQuotes?key=" + apiKey;
+        HttpClient httpClient = HttpClient.newHttpClient();
+        Gson gson = new Gson();
+        String requestBody = gson.toJson(formattedQuotes);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(confirmQuotesEndpoint))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        //check response
+        if (response.statusCode() == 204) {
+            System.out.println("Quotes confirmed successfully.");
+        } else {
+            System.out.println("Failed to confirm quotes. Status code: " + response.statusCode());
+        }
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/getBookings")
+    public ResponseEntity<List<Booking>> getBookings() {
+
+        return null;
+    }
+
+
+
 
     // Helper methods
 
@@ -225,5 +275,7 @@ public class GTicketsController {
         }
         return null;
     }
+
+
 
 }
