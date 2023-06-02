@@ -1,5 +1,7 @@
 package be.kuleuven.distributedsystems.cloud.controller;
 
+import be.kuleuven.distributedsystems.cloud.entities.Quote;
+import be.kuleuven.distributedsystems.cloud.manager.QuoteManager;
 import com.google.gson.*;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.ResponseEntity;
@@ -33,10 +35,15 @@ public class GTicketsController {
     private final Gson gson = new Gson();
     private static ConcurrentMap<String, JsonArray> cachedFlights;
 
+    private static List<Quote> quotes = new ArrayList<>();
+    private QuoteManager quoteManager;
+
     public GTicketsController() {
         // initialize the cache
         cachedFlights = new ConcurrentHashMap<>();
         getFlights();
+
+        quoteManager = new QuoteManager();
     }
 
     @GetMapping("/getFlights")
@@ -149,6 +156,11 @@ public class GTicketsController {
         // get the seat from the url
         JsonObject seat = getResponse(seatURL);
         System.out.println("Seat: " + seat);
+
+
+        //create quote
+        QuoteManager.createQuote(airline, flightId, seatId);
+
 
         // return the seat
         return ResponseEntity.ok(seat.toString());
