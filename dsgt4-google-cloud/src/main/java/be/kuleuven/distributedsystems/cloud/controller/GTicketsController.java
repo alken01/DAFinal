@@ -1,6 +1,7 @@
 package be.kuleuven.distributedsystems.cloud.controller;
 
 import com.google.gson.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,27 +16,24 @@ import java.util.concurrent.ConcurrentMap;
 @RestController
 @RequestMapping("/api")
 public class GTicketsController {
-    // TODO: Hide the API key in a configuration file
-    // the url to get the flights from the airlines
-    private final String apiKey = "Iw8zeveVyaPNWonPNaU0213uw3g6Ei";
+
+    private final String apiKey;
     private final Gson gson = new Gson();
     private static ConcurrentMap<String, JsonArray> cachedFlights;
     private final HashMap<String, WebClient> airlineEndpoints = new HashMap<>();
 
-    public GTicketsController(WebClient.Builder webClientBuilder) {
-        // TODO: Maybe move this to a configuration file?
-        // initialize the endpoint flights
-        String[] airlineEndpoint = new String[]{
-                "reliable.westeurope.cloudapp.azure.com",
-                "unreliable.eastus.cloudapp.azure.com"
-        };
-
-        for (String airline : airlineEndpoint) {
+    public GTicketsController(WebClient.Builder webClientBuilder,  @Value("${api.key}") String apiKey,
+                              @Value("${airline.endpoints}") String[] airlineEndpointsConfig) {
+        // initialize the webclients for the airlines from the application.properties
+        for (String airline : airlineEndpointsConfig) {
             // keep only the first word after the http://
             airlineEndpoints.put(airline, webClientBuilder.baseUrl(airline)
                     .build());
         }
-        // initialize the cache
+        // set the api key from the application.properties
+        this.apiKey = apiKey;
+
+        // initialize the cachedFlights
         cachedFlights = new ConcurrentHashMap<>();
     }
 
@@ -43,15 +41,11 @@ public class GTicketsController {
     @GetMapping("/getFlights")
     public ResponseEntity<String> getFlights() {
         String endpoint = "/flights?key=" + apiKey;
-
         // get the flights from the airlines
         JsonArray flightsArray = new JsonArray();
         for (Map.Entry<String, WebClient> entry : airlineEndpoints.entrySet()) {
+            // TODO: maybe add a timeout?
             // check if the flights are already cached
-            // TODO: maybe add a timeout? if more flights are added in the external API
-            //  the cache will not be updated as it is currently implemented
-
-            //print webclient url
             if (cachedFlights.containsKey(entry.getKey())) {
                 flightsArray.addAll(cachedFlights.get(entry.getKey()));
                 continue;
