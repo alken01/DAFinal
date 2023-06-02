@@ -1,77 +1,76 @@
 package be.kuleuven.distributedsystems.cloud.controller;
 
 import com.google.gson.*;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
-
-import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.reactive.function.client.WebClient;
 
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
-
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-
 
 @RestController
 @RequestMapping("/api")
 public class GTicketsController {
     // TODO: Hide the API key in a configuration file
     // the url to get the flights from the airlines
-    private final String reliableAirlineEndpoint = "http://reliable.westeurope.cloudapp.azure.com";
-    private final String unreliableAirlineEndpoint = "http://unreliable.eastus.cloudapp.azure.com";
     private final String apiKey = "Iw8zeveVyaPNWonPNaU0213uw3g6Ei";
-    private final RestTemplate restTemplate = new RestTemplateBuilder()
-            .setConnectTimeout(Duration.ofSeconds(10))
-            .setReadTimeout(Duration.ofSeconds(10))
-            .build();
     private final Gson gson = new Gson();
     private static ConcurrentMap<String, JsonArray> cachedFlights;
+    private final HashMap<String, WebClient> airlineEndpoints = new HashMap<>();
 
-    public GTicketsController() {
+    public GTicketsController(WebClient.Builder webClientBuilder) {
+        // TODO: Maybe move this to a configuration file?
+        // initialize the endpoint flights
+        String[] airlineEndpoint = new String[]{
+                "reliable.westeurope.cloudapp.azure.com",
+                "unreliable.eastus.cloudapp.azure.com"
+        };
+
+        for (String airline : airlineEndpoint) {
+            // keep only the first word after the http://
+            airlineEndpoints.put(airline, webClientBuilder.baseUrl(airline)
+                    .build());
+        }
         // initialize the cache
         cachedFlights = new ConcurrentHashMap<>();
-        getFlights();
     }
+
 
     @GetMapping("/getFlights")
     public ResponseEntity<String> getFlights() {
-        // check if the flights are already cached
-        // TODO: maybe add a timeout? if more flights are added in the external API
-        //  the cache will not be updated as it is currently implemented
-        if (cachedFlights.containsKey("flights")) {
-            // return the cached flights
-            return ResponseEntity.ok(gson.toJson(cachedFlights.get("flights")));
-        }
+        String endpoint = "/flights?key=" + apiKey;
 
-        String reliableUrl = reliableAirlineEndpoint + "/flights?key=" + apiKey;
-        String unreliableUrl = unreliableAirlineEndpoint + "/flights?key=" + apiKey;
-
-        // get the flights from the airline
-        JsonArray reliableFlightsArray = getFlights(reliableUrl);
-        JsonArray unreliableFlightsArray = getFlights(unreliableUrl);
-
-        // merge the flights from the two airlines
+        // get the flights from the airlines
         JsonArray flightsArray = new JsonArray();
-        flightsArray.addAll(reliableFlightsArray);
-        flightsArray.addAll(unreliableFlightsArray);
+        for (Map.Entry<String, WebClient> entry : airlineEndpoints.entrySet()) {
+            // check if the flights are already cached
+            // TODO: maybe add a timeout? if more flights are added in the external API
+            //  the cache will not be updated as it is currently implemented
+
+            //print webclient url
+            if (cachedFlights.containsKey(entry.getKey())) {
+                flightsArray.addAll(cachedFlights.get(entry.getKey()));
+                continue;
+            }
+            flightsArray.addAll(getFlights(endpoint, entry.getValue(), entry.getKey()));
+        }
 
         // convert the flights to JSON String and return it
         return ResponseEntity.ok(gson.toJson(flightsArray));
     }
 
+
     @GetMapping("/getFlight")
     public ResponseEntity<String> getFlight(@RequestParam String airline, @RequestParam String flightId) {
         // get the url in the cachedFlights
-        String flightURL = "http://" + airline + getFlightLink(airline, flightId, "self");
+        String flightEndpoint = getFlightLink(airline, flightId, "self");
 
         // get the flight from the url
-        JsonObject flightsObject = getResponse(flightURL);
+        JsonObject flightsObject = getResponse(flightEndpoint, airlineEndpoints.get(airline));
 
         // return the flight
         return ResponseEntity.ok(flightsObject.toString());
@@ -80,11 +79,12 @@ public class GTicketsController {
     @GetMapping("/getFlightTimes")
     public ResponseEntity<String[]> getFlightTimes(@RequestParam String airline, @RequestParam String flightId) {
         // get the url in the cachedFlights
-        String flightURL = "http://" + airline + getFlightLink(airline, flightId, "times");
+        String flightURL = getFlightLink(airline, flightId, "times");
 
         // get the flight times from the flight as a string array
-        JsonObject json = getResponse(flightURL);
-        JsonArray stringList = json.getAsJsonObject("_embedded").getAsJsonArray("stringList");
+        JsonArray stringList = getResponse(flightURL, airlineEndpoints.get(airline))
+                .getAsJsonObject("_embedded")
+                .getAsJsonArray("stringList");
 
         String[] stringArray = new String[stringList.size()];
         for (int i = 0; i < stringList.size(); i++) {
@@ -100,11 +100,12 @@ public class GTicketsController {
     public ResponseEntity<String> getAvailableSeats(@RequestParam String airline,
                                                     @RequestParam String flightId, @RequestParam String time) {
         // get the URL in the cachedFlights
-        String seatsURL = "http://" + airline + getFlightLink(airline, flightId, "seats").replace("{time}", time);
-        System.out.println("Seats URL: " + seatsURL);
+        String seatsURL = getFlightLink(airline, flightId, "seats").replace("{time}", time);
 
         // get the seats from the URL
-        JsonArray seatList = getResponse(seatsURL).getAsJsonObject("_embedded").getAsJsonArray("seats");
+        JsonArray seatList = getResponse(seatsURL, airlineEndpoints.get(airline))
+                .getAsJsonObject("_embedded")
+                .getAsJsonArray("seats");
 
         // group the seats based on type
         Map<String, List<JsonObject>> seatsByType = new HashMap<>();
@@ -134,8 +135,6 @@ public class GTicketsController {
             result.add(type, seatArray);
         }
 
-        System.out.println("Formatted Seat Data: " + result);
-
         // return the formatted seat data
         return ResponseEntity.ok(gson.toJson(result));
     }
@@ -144,11 +143,10 @@ public class GTicketsController {
     public ResponseEntity<String> getSeat(@RequestParam String airline, @RequestParam String flightId,
                                           @RequestParam String seatId) {
         // get the seat url
-        String seatURL = "http://" + airline + "/flights/" + flightId + "/seats/" + seatId;
+        String seatURL = "/flights/" + flightId + "/seats/" + seatId;
 
         // get the seat from the url
-        JsonObject seat = getResponse(seatURL);
-        System.out.println("Seat: " + seat);
+        JsonObject seat = getResponse(seatURL, airlineEndpoints.get(airline));
 
         // return the seat
         return ResponseEntity.ok(seat.toString());
@@ -156,19 +154,21 @@ public class GTicketsController {
 
     // Helper methods
 
-    private JsonArray getFlights(String url) {
+    private JsonArray getFlights(String endpoint, WebClient webClient, String airline) {
         // get the flights from the airline
-        JsonObject flightsObject = getResponse(url);
+        JsonObject flightsObject = getResponse(endpoint, webClient);
 
         // parse the flights to a JSON array
         JsonArray flightsArray = flightsObject.getAsJsonObject("_embedded").getAsJsonArray("flights");
 
         // cache the flights and return them
-        cachedFlights.put(url, flightsArray);
+
+        cachedFlights.put(airline, flightsArray);
+
         return flightsArray;
     }
 
-    private JsonObject getResponse(String url) {
+    private JsonObject getResponse(String endpoint, WebClient webClient) {
         // Exponential backoff retry mechanism
         long delayMs = 10;
         int maxRetries = 5;
@@ -177,9 +177,9 @@ public class GTicketsController {
         for (int retries = 0; retries < maxRetries; retries++) {
             try {
                 // Make the API request to get the flights from the airline
-                ResponseEntity<String> reliableResponse = restTemplate.getForEntity(url, String.class);
-                return JsonParser.parseString(reliableResponse.getBody()).getAsJsonObject();
-            } catch (HttpClientErrorException | HttpServerErrorException e) {
+                String response = webClient.get().uri(endpoint).retrieve().bodyToMono(String.class).block();
+                return JsonParser.parseString(response).getAsJsonObject();
+            } catch (Exception e) {
                 // Wait before making the next retry
                 delayMs = Math.min(delayMs * 2, maxDelayMs);
                 try {
@@ -187,10 +187,6 @@ public class GTicketsController {
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                 }
-            } catch (Exception e) {
-                // Handle other exceptions
-                e.printStackTrace();
-                break;
             }
         }
 
