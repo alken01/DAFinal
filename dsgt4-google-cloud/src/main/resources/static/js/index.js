@@ -20,7 +20,7 @@ import { Login } from "./login.js";
 const html = htm.bind(h);
 
 let firebaseConfig;
-if (location.hostname === "localhost") {
+if ((location.hostname === "localhost")) { //temp false to test out level 2 (&& false)
   firebaseConfig = {
     apiKey: "AIzaSyBoLKKR7OFL2ICE15Lc1-8czPtnbej0jWY",
     projectId: "demo-distributed-systems-kul",
@@ -28,6 +28,9 @@ if (location.hostname === "localhost") {
 } else {
   firebaseConfig = {
     // TODO: for level 2, paste your config here
+      apiKey: "AIzaSyD7zJLuqTko8494kglGcPN5rwDzKh_cITg",
+      authDomain: "dafinal-50ac9.firebaseapp.com",
+      projectId: "dafinal-50ac9",
   };
 }
 
@@ -35,7 +38,7 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 setAuth(auth);
 if (location.hostname === "localhost") {
-  connectAuthEmulator(auth, "http://localhost:8082", { disableWarnings: true });
+  connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
 }
 let rendered = false;
 onAuthStateChanged(auth, (user) => {

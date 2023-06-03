@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
+
 
 @Component
 public class SecurityFilter extends OncePerRequestFilter {
@@ -31,12 +33,14 @@ public class SecurityFilter extends OncePerRequestFilter {
         // Print the Authorization header
         System.out.println("Authorization header: " + header);
 
-        if (header == null || !header.startsWith("Bearer ")) {
+        String headerStartString = "Bearer ";
+
+        if (header == null || !header.startsWith(headerStartString)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = header.substring(7); // Extract token from header remove bearer
+        String token = header.substring(headerStartString.length()); // Extract token from header remove bearer
 
 
         try {
@@ -48,6 +52,10 @@ public class SecurityFilter extends OncePerRequestFilter {
             String email = jwt.getClaim("email").asString();
             System.out.println("Authorization mail: " + email);
             String role = jwt.getClaim("role").asString(); // adjust this according to your token structure
+            // if role is not 'manager', assign it to be 'user'
+            if(Objects.isNull(role)){
+                role = "user";
+            }
             System.out.println("Authorization role: " + role);
 
             // create user and set in the authentication
