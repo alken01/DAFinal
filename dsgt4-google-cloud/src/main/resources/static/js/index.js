@@ -20,12 +20,14 @@ import { Login } from "./login.js";
 const html = htm.bind(h);
 
 let firebaseConfig;
-if ((location.hostname === "localhost")) { //temp false to test out level 2 (&& false)
+if ((location.hostname === "localhost") && false) { //temp false to test out level 2 (&& false)
+    console.log("using emulator");
   firebaseConfig = {
     apiKey: "AIzaSyBoLKKR7OFL2ICE15Lc1-8czPtnbej0jWY",
     projectId: "demo-distributed-systems-kul",
   };
 } else {
+  console.log("using firebase cloud auth");
   firebaseConfig = {
     // TODO: for level 2, paste your config here
       apiKey: "AIzaSyD7zJLuqTko8494kglGcPN5rwDzKh_cITg",
@@ -37,7 +39,7 @@ if ((location.hostname === "localhost")) { //temp false to test out level 2 (&& 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 setAuth(auth);
-if (location.hostname === "localhost") {
+if ((location.hostname === "localhost") && false) { //temp false to test out level 2 (&& false)
   connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
 }
 let rendered = false;
