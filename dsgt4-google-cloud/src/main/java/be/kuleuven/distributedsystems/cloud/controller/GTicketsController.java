@@ -2,6 +2,8 @@ package be.kuleuven.distributedsystems.cloud.controller;
 
 import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Quote;
+import be.kuleuven.distributedsystems.cloud.entities.Ticket;
+import be.kuleuven.distributedsystems.cloud.entities.User;
 import be.kuleuven.distributedsystems.cloud.manager.BookingManager;
 import com.google.gson.*;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;
+import java.net.Authenticator;
+import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -27,8 +31,11 @@ public class GTicketsController {
     private static ConcurrentMap<String, JsonArray> cachedFlights;
     private final HashMap<String, WebClient> airlineEndpoints = new HashMap<>();
 
-    private static List<Quote> quotes = new ArrayList<>();
+    private static List<Quote> allquotes = new ArrayList<>();
+
     private BookingManager bookingManager;
+    private Booking booking;
+    private User user;
 
     public GTicketsController(WebClient.Builder webClientBuilder,  @Value("${api.key}") String apiKey,
                               @Value("${airline.endpoints}") String[] airlineEndpointsConfig) {
@@ -159,50 +166,106 @@ public class GTicketsController {
         return ResponseEntity.ok(seat.toString());
     }
 
-    @PostMapping("/api/confirmQuotes")
-    public ResponseEntity<String> confirmQuotes(@RequestBody List<Quote> quotes) throws IOException, InterruptedException {
-        //create the list of quotes
-        List<Quote> allQuotes = BookingManager.getAllQuotes();
 
+    //For this method i tried to follow this website: https://www.baeldung.com/java-httpclient-post
+
+    @PostMapping("/confirmQuotes")
+    public ResponseEntity<String> confirmQuotes(@RequestBody Quote[] quotes) throws IOException, InterruptedException {
+        //get all the quotes now to use them in the next method
+        allquotes = BookingManager.getAllQuotes();
         // format quotes for the API
         List<Map<String, String>> formattedQuotes = new ArrayList<>();
-        for (Quote quote : allQuotes) {
+        for (Quote quote : quotes) {
             Map<String, String> formattedQuote = new HashMap<>();
             formattedQuote.put("airline", quote.getAirline());
             formattedQuote.put("flightId", quote.getFlightId().toString());
             formattedQuote.put("seatId", quote.getSeatId().toString());
             formattedQuotes.add(formattedQuote);
         }
+        System.out.println("Formatted Quotes: " + formattedQuotes);
 
         //make POST request
-        String confirmQuotesEndpoint = "http://localhost:8080/confirmQuotes?key=" + apiKey;
-        HttpClient httpClient = HttpClient.newHttpClient();
+        String confirmQuotesEndpoint = "http://localhost:8080/api/confirmQuotes?key=" + apiKey;
+        // The email is hardcoded for now for the authentication, but it still does not work, i think this should be handled in auth part
+        HttpClient httpClient = HttpClient.newBuilder()
+                .authenticator(new Authenticator() {
+                    @Override
+                    protected PasswordAuthentication getPasswordAuthentication() {
+                        return new PasswordAuthentication(
+                                "cpc@gmail.com",
+                                "password".toCharArray());
+                    }
+                })
+                .build();
         Gson gson = new Gson();
+        //this just prepares the request body
         String requestBody = gson.toJson(formattedQuotes);
+        System.out.println("Request Body: " + requestBody);
+        //prepares the request
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(confirmQuotesEndpoint))
-                .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
+        //gets the response from the server
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
+        System.out.println("Response: " + response);
         //check response
         if (response.statusCode() == 204) {
             System.out.println("Quotes confirmed successfully.");
         } else {
             System.out.println("Failed to confirm quotes. Status code: " + response.statusCode());
         }
-
         return ResponseEntity.noContent().build();
     }
+    //I think the problem is accessing the endpoint, for some reason i dont haave permission and get error 403
 
+
+
+
+
+    //Currently working on this, i think the problem may be with the way i am passing the bookings but they do not show up
+    //The method is being called as can be seen by the print statements, but the bookings do not appear
     @GetMapping("/getBookings")
-    public ResponseEntity<List<Booking>> getBookings() {
+    public ResponseEntity<String> getBookings() {
+        String email = "cpc@gmail.com";
+        booking = BookingManager.createBooking(allquotes, email);
+        System.out.println("Booking added: " + booking.getCustomer());
 
-        return null;
+        // Create a JSONObject for the booking
+        JsonObject bookingObject = new JsonObject();
+        bookingObject.addProperty("id", booking.getId().toString());
+        bookingObject.addProperty("time", booking.getTime().toString());
+
+        List<Ticket> tickets = booking.getTickets();
+
+        // Create a JSONArray for the tickets
+        JsonArray ticketsArray = new JsonArray();
+        for (Ticket ticket : tickets) {
+            JsonObject ticketObject = new JsonObject();
+            ticketObject.addProperty("airline", ticket.getAirline());
+            ticketObject.addProperty("flightId", ticket.getFlightId().toString());
+            ticketObject.addProperty("seatId", ticket.getSeatId().toString());
+            ticketObject.addProperty("ticketId", ticket.getTicketId().toString());
+            ticketObject.addProperty("customer", email);
+            ticketsArray.add(ticketObject);
+        }
+
+        bookingObject.add("tickets", ticketsArray);
+        bookingObject.addProperty("customer", email);
+        System.out.println(bookingObject.toString());
+        // Create the bookings array and add the booking object
+        JsonArray bookingsArray = new JsonArray();
+        bookingsArray.add(bookingObject);
+        System.out.println(bookingsArray.toString());
+
+        // Create Gson instance
+        Gson gson = new Gson();
+        System.out.println("test" + gson.toJson(bookingsArray));
+
+        // Convert the booking object to JSON and return
+        return ResponseEntity.ok(gson.toJson(bookingsArray));
     }
-
 
 
 
