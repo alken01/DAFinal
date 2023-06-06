@@ -197,7 +197,6 @@ public class GTicketsController {
                     }
                 })
                 .build();
-        Gson gson = new Gson();
         //this just prepares the request body
         String requestBody = gson.toJson(formattedQuotes);
         System.out.println("Request Body: " + requestBody);
@@ -230,7 +229,6 @@ public class GTicketsController {
     public ResponseEntity<String> getBookings() {
         String email = "cpc@gmail.com";
         booking = BookingManager.createBooking(allquotes, email);
-        System.out.println("Booking added: " + booking.getCustomer());
 
         // Create a JSONObject for the booking
         JsonObject bookingObject = new JsonObject();
@@ -253,17 +251,13 @@ public class GTicketsController {
 
         bookingObject.add("tickets", ticketsArray);
         bookingObject.addProperty("customer", email);
-        System.out.println(bookingObject.toString());
         // Create the bookings array and add the booking object
         JsonArray bookingsArray = new JsonArray();
         bookingsArray.add(bookingObject);
-        System.out.println(bookingsArray.toString());
 
-        // Create Gson instance
-        Gson gson = new Gson();
-        System.out.println("test" + gson.toJson(bookingsArray));
 
         // Convert the booking object to JSON and return
+        System.out.println("JSON: " + gson.toJson(bookingsArray));
         return ResponseEntity.ok(gson.toJson(bookingsArray));
     }
 
