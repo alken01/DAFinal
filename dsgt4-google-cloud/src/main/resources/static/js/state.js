@@ -7,6 +7,7 @@ try {
 const quotes = signal(initQuotes);
 const isManager = signal(false);
 let auth = {};
+let db = null;
 
 export function getQuotes() {
   return quotes.value;
@@ -31,4 +32,12 @@ export function getAuth() {
 
 export function setAuth(a) {
   auth = a;
+}
+
+export function getDb() {
+  return db;
+}
+
+export function setDb(d) {
+  db = d;
 }

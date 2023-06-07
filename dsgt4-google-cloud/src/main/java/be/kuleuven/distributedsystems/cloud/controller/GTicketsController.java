@@ -1,77 +1,93 @@
 package be.kuleuven.distributedsystems.cloud.controller;
 
+import be.kuleuven.distributedsystems.cloud.entities.Booking;
+import be.kuleuven.distributedsystems.cloud.entities.Quote;
+import be.kuleuven.distributedsystems.cloud.entities.Ticket;
+import be.kuleuven.distributedsystems.cloud.entities.User;
+import be.kuleuven.distributedsystems.cloud.manager.BookingManager;
 import com.google.gson.*;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
-
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
-
-import java.time.Duration;
+import java.io.IOException;
+import java.net.Authenticator;
+import java.net.PasswordAuthentication;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-
 @RestController
 @RequestMapping("/api")
 public class GTicketsController {
-    // TODO: Hide the API key in a configuration file
-    // the url to get the flights from the airlines
-    private final String reliableAirlineEndpoint = "http://reliable.westeurope.cloudapp.azure.com";
-    private final String unreliableAirlineEndpoint = "http://unreliable.eastus.cloudapp.azure.com";
-    private final String apiKey = "Iw8zeveVyaPNWonPNaU0213uw3g6Ei";
-    private final RestTemplate restTemplate = new RestTemplateBuilder()
-            .setConnectTimeout(Duration.ofSeconds(10))
-            .setReadTimeout(Duration.ofSeconds(10))
-            .build();
+
+    private final String apiKey;
     private final Gson gson = new Gson();
     private static ConcurrentMap<String, JsonArray> cachedFlights;
+    private final HashMap<String, WebClient> airlineEndpoints = new HashMap<>();
 
-    public GTicketsController() {
-        // initialize the cache
+    private static List<Quote> allquotes = new ArrayList<>();
+
+    private BookingManager bookingManager;
+    private Booking booking;
+    private static List<Ticket> alltickets = new ArrayList<>();
+    private final String email;
+
+    private final List<Booking> bookingList = new ArrayList<>();
+    private WebClient.Builder wCB;
+
+    public GTicketsController(WebClient.Builder webClientBuilder,  @Value("${api.key}") String apiKey,
+                              @Value("${airline.endpoints}") String[] airlineEndpointsConfig) {
+        // initialize the webclients for the airlines from the application.properties
+        for (String airline : airlineEndpointsConfig) {
+            // keep only the first word after the http://
+            airlineEndpoints.put(airline, webClientBuilder.baseUrl(airline)
+                    .build());
+        }
+        // set the api key from the application.properties
+        this.apiKey = apiKey;
+
+        // initialize the cachedFlights
         cachedFlights = new ConcurrentHashMap<>();
-        getFlights();
+        bookingManager = new BookingManager();
+        email = "cpc@gmail.com";
+        wCB = WebClient.builder();
     }
+
 
     @GetMapping("/getFlights")
     public ResponseEntity<String> getFlights() {
-        // check if the flights are already cached
-        // TODO: maybe add a timeout? if more flights are added in the external API
-        //  the cache will not be updated as it is currently implemented
-        if (cachedFlights.containsKey("flights")) {
-            // return the cached flights
-            return ResponseEntity.ok(gson.toJson(cachedFlights.get("flights")));
-        }
-
-        String reliableUrl = reliableAirlineEndpoint + "/flights?key=" + apiKey;
-        String unreliableUrl = unreliableAirlineEndpoint + "/flights?key=" + apiKey;
-
-        // get the flights from the airline
-        JsonArray reliableFlightsArray = getFlights(reliableUrl);
-        JsonArray unreliableFlightsArray = getFlights(unreliableUrl);
-
-        // merge the flights from the two airlines
+        String endpoint = "/flights?key=" + apiKey;
+        // get the flights from the airlines
         JsonArray flightsArray = new JsonArray();
-        flightsArray.addAll(reliableFlightsArray);
-        flightsArray.addAll(unreliableFlightsArray);
+        for (Map.Entry<String, WebClient> entry : airlineEndpoints.entrySet()) {
+            // TODO: maybe add a timeout?
+            // check if the flights are already cached
+            if (cachedFlights.containsKey(entry.getKey())) {
+                flightsArray.addAll(cachedFlights.get(entry.getKey()));
+                continue;
+            }
+            flightsArray.addAll(getFlights(endpoint, entry.getValue(), entry.getKey()));
+        }
 
         // convert the flights to JSON String and return it
         return ResponseEntity.ok(gson.toJson(flightsArray));
     }
 
+
     @GetMapping("/getFlight")
     public ResponseEntity<String> getFlight(@RequestParam String airline, @RequestParam String flightId) {
         // get the url in the cachedFlights
-        String flightURL = "http://" + airline + getFlightLink(airline, flightId, "self");
+        String flightEndpoint = getFlightLink(airline, flightId, "self");
 
         // get the flight from the url
-        JsonObject flightsObject = getResponse(flightURL);
+        JsonObject flightsObject = getResponse(flightEndpoint, airlineEndpoints.get(airline));
 
         // return the flight
         return ResponseEntity.ok(flightsObject.toString());
@@ -80,11 +96,12 @@ public class GTicketsController {
     @GetMapping("/getFlightTimes")
     public ResponseEntity<String[]> getFlightTimes(@RequestParam String airline, @RequestParam String flightId) {
         // get the url in the cachedFlights
-        String flightURL = "http://" + airline + getFlightLink(airline, flightId, "times");
+        String flightURL = getFlightLink(airline, flightId, "times");
 
         // get the flight times from the flight as a string array
-        JsonObject json = getResponse(flightURL);
-        JsonArray stringList = json.getAsJsonObject("_embedded").getAsJsonArray("stringList");
+        JsonArray stringList = getResponse(flightURL, airlineEndpoints.get(airline))
+                .getAsJsonObject("_embedded")
+                .getAsJsonArray("stringList");
 
         String[] stringArray = new String[stringList.size()];
         for (int i = 0; i < stringList.size(); i++) {
@@ -100,11 +117,12 @@ public class GTicketsController {
     public ResponseEntity<String> getAvailableSeats(@RequestParam String airline,
                                                     @RequestParam String flightId, @RequestParam String time) {
         // get the URL in the cachedFlights
-        String seatsURL = "http://" + airline + getFlightLink(airline, flightId, "seats").replace("{time}", time);
-        System.out.println("Seats URL: " + seatsURL);
+        String seatsURL = getFlightLink(airline, flightId, "seats").replace("{time}", time);
 
         // get the seats from the URL
-        JsonArray seatList = getResponse(seatsURL).getAsJsonObject("_embedded").getAsJsonArray("seats");
+        JsonArray seatList = getResponse(seatsURL, airlineEndpoints.get(airline))
+                .getAsJsonObject("_embedded")
+                .getAsJsonArray("seats");
 
         // group the seats based on type
         Map<String, List<JsonObject>> seatsByType = new HashMap<>();
@@ -134,8 +152,6 @@ public class GTicketsController {
             result.add(type, seatArray);
         }
 
-        System.out.println("Formatted Seat Data: " + result);
-
         // return the formatted seat data
         return ResponseEntity.ok(gson.toJson(result));
     }
@@ -144,31 +160,126 @@ public class GTicketsController {
     public ResponseEntity<String> getSeat(@RequestParam String airline, @RequestParam String flightId,
                                           @RequestParam String seatId) {
         // get the seat url
-        String seatURL = "http://" + airline + "/flights/" + flightId + "/seats/" + seatId;
+        String seatURL = "/flights/" + flightId + "/seats/" + seatId;
 
         // get the seat from the url
-        JsonObject seat = getResponse(seatURL);
-        System.out.println("Seat: " + seat);
+        JsonObject seat = getResponse(seatURL, airlineEndpoints.get(airline));
+
+
+        //create quote
+        BookingManager.createQuote(airline, flightId, seatId);
 
         // return the seat
         return ResponseEntity.ok(seat.toString());
     }
 
+
+    //For this method i tried to follow this website: https://www.baeldung.com/java-httpclient-post
+
+    @PostMapping("/confirmQuotes")
+    public ResponseEntity<String> confirmQuotes(@RequestBody Quote[] quotes) throws IOException, InterruptedException {
+        //use urls to get tickets and populate them with the quotes; create the booking for the tickets
+        List<JsonObject> ticketList = new ArrayList<JsonObject>();
+        System.out.println(quotes.length);
+
+        ArrayList<Ticket> tickets = new ArrayList<>();
+        // get the tickets from the URL
+        for (Quote quote : quotes) {
+            UUID ticketUUID = UUID.randomUUID();
+            String ticketURL = "/flights/" + quote.getFlightId().toString() + "/seats/" + quote.getSeatId().toString() + "/ticket?key=" + apiKey;
+
+            // Create the URI with the necessary parameters
+            URI putTicketUri = UriComponentsBuilder.fromUriString(ticketURL)
+                    .queryParam("customer", email)
+                    .queryParam("bookingReference", UUID.randomUUID().toString())
+                    .build()
+                    .toUri();
+
+            // Send the PUT request
+            Ticket ticket = this.wCB
+                    .baseUrl(quote.getAirline())
+                    .build()
+                    .put()
+                    .uri(putTicketUri)
+                    .retrieve()
+                    .bodyToMono(Ticket.class)
+                    .block();
+
+            if (ticket != null) {
+                tickets.add(ticket);
+                JsonObject ticketJsonObject = new JsonObject();
+                ticketJsonObject.addProperty("ticketId", ticket.getTicketId().toString()); // Adjust the property name as per your Ticket class
+                ticketList.add(ticketJsonObject);
+                System.out.println("Ticket from URL: " + ticketJsonObject);
+            }
+        }
+        booking = BookingManager.createBooking(tickets, email);
+        bookingList.add(booking);
+        alltickets = tickets;
+        return ResponseEntity.noContent().build();
+    }
+    //I think the problem is accessing the endpoint, for some reason i dont haave permission and get error 403
+
+
+
+
+
+    //Currently working on this, i think the problem may be with the way i am passing the bookings but they do not show up
+    //The method is being called as can be seen by the print statements, but the bookings do not appear
+    @GetMapping("/getBookings")
+    public ResponseEntity<String> getBookings() {
+        booking = this.booking;
+        // Create a JSONObject for the booking
+        JsonObject bookingObject = new JsonObject();
+        bookingObject.addProperty("id", booking.getId().toString());
+        bookingObject.addProperty("time", booking.getTime().toString());
+
+        List<Ticket> tickets = booking.getTickets();
+
+        // Create a JSONArray for the tickets
+        JsonArray ticketsArray = new JsonArray();
+        for (Ticket ticket : tickets) {
+            JsonObject ticketObject = new JsonObject();
+            ticketObject.addProperty("airline", ticket.getAirline());
+            ticketObject.addProperty("flightId", ticket.getFlightId().toString());
+            ticketObject.addProperty("seatId", ticket.getSeatId().toString());
+            ticketObject.addProperty("ticketId", ticket.getTicketId().toString());
+            ticketObject.addProperty("customer", email);
+            ticketsArray.add(ticketObject);
+        }
+
+        bookingObject.add("tickets", ticketsArray);
+        bookingObject.addProperty("customer", email);
+        // Create the bookings array and add the booking object
+        JsonArray bookingsArray = new JsonArray();
+        bookingsArray.add(bookingObject);
+
+        // Create Gson instance
+        System.out.println("test" + gson.toJson(bookingsArray));
+
+        // Convert the booking object to JSON
+        return ResponseEntity.ok(gson.toJson(bookingsArray));
+    }
+
+
+
     // Helper methods
 
-    private JsonArray getFlights(String url) {
+    private JsonArray getFlights(String endpoint, WebClient webClient, String airline) {
         // get the flights from the airline
-        JsonObject flightsObject = getResponse(url);
+        JsonObject flightsObject = getResponse(endpoint, webClient);
 
         // parse the flights to a JSON array
         JsonArray flightsArray = flightsObject.getAsJsonObject("_embedded").getAsJsonArray("flights");
 
         // cache the flights and return them
-        cachedFlights.put(url, flightsArray);
+
+        cachedFlights.put(airline, flightsArray);
+
         return flightsArray;
     }
 
-    private JsonObject getResponse(String url) {
+    private JsonObject getResponse(String endpoint, WebClient webClient) {
         // Exponential backoff retry mechanism
         long delayMs = 10;
         int maxRetries = 5;
@@ -177,9 +288,9 @@ public class GTicketsController {
         for (int retries = 0; retries < maxRetries; retries++) {
             try {
                 // Make the API request to get the flights from the airline
-                ResponseEntity<String> reliableResponse = restTemplate.getForEntity(url, String.class);
-                return JsonParser.parseString(reliableResponse.getBody()).getAsJsonObject();
-            } catch (HttpClientErrorException | HttpServerErrorException e) {
+                String response = webClient.get().uri(endpoint).retrieve().bodyToMono(String.class).block();
+                return JsonParser.parseString(response).getAsJsonObject();
+            } catch (Exception e) {
                 // Wait before making the next retry
                 delayMs = Math.min(delayMs * 2, maxDelayMs);
                 try {
@@ -187,10 +298,6 @@ public class GTicketsController {
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                 }
-            } catch (Exception e) {
-                // Handle other exceptions
-                e.printStackTrace();
-                break;
             }
         }
 
@@ -225,5 +332,7 @@ public class GTicketsController {
         }
         return null;
     }
+
+
 
 }
