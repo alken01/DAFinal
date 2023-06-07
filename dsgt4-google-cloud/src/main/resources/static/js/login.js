@@ -4,7 +4,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "https://www.gstatic.com/firebasejs/9.9.4/firebase-auth.js";
-import { getAuth } from "./state.js";
+import { doc, setDoc, getDocs, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.6.6/firebase-firestore.js";
+import { getAuth, getDb } from "./state.js";
 
 const html = htm.bind(h);
 
@@ -40,18 +41,26 @@ export class Login extends Component {
   }
 
   async login() {
-    const email = document.querySelector("input.email").value;
-    const password = document.querySelector("input.password").value;
-    try {
-      await signInWithEmailAndPassword(getAuth(), email, password);
-      location.assign("/");
-    } catch (e) {
-      if (e.code === "auth/user-not-found") {
-        await createUserWithEmailAndPassword(getAuth(), email, password);
-        location.assign("/");
-      } else {
-        throw e;
-      }
-    }
-  }
+     const email = document.querySelector("input.email").value;
+     const password = document.querySelector("input.password").value;
+     try {
+       const userCredential = await signInWithEmailAndPassword(getAuth(), email, password);
+       console.log(userCredential.user.uid);
+
+       const docRef = await setDoc(doc(getDb(), "users", userCredential.user.uid), {
+         email: email
+       });
+       //console.log("id of docRef: ", docRef.id);
+       location.assign("/");
+     } catch (e) {
+       if (e.code === "auth/user-not-found") {
+         console.log('trying to add user');
+         await createUserWithEmailAndPassword(getAuth(), email, password);
+         location.assign("/");
+       } else {
+         throw e;
+       }
+     }
+   }
+
 }
