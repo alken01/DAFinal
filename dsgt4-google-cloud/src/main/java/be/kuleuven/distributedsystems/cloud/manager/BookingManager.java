@@ -3,6 +3,7 @@ package be.kuleuven.distributedsystems.cloud.manager;
 import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Quote;
 import be.kuleuven.distributedsystems.cloud.entities.Ticket;
+import com.google.gson.JsonObject;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -54,17 +55,28 @@ public class BookingManager {
 
 
 
-    public static Booking createBooking(List<Quote> quotes, String customer) {
-        //prepares the tickets list for the booking
-        List<Ticket> tickets = new ArrayList<>();
-        //goes through the quotes and turns them to tickets and adds them to tickets list
-        for (Quote quote : quotes) {
-            Ticket ticket = quote2Ticket(quote, customer, "reference");
-            tickets.add(ticket);
-        }
+    public static Booking createBooking(List<Ticket> tickets, String customer) {
         //creates a booking with random ID, the current time and the customer
+
         UUID bookingId = UUID.randomUUID();
         LocalDateTime bookingTime = LocalDateTime.now();
+        List<Ticket> ticketList = new ArrayList<>();
+        /*for (JsonObject jsonObject : tickets) {
+            String airline = jsonObject.get("airline").toString();
+            String flightId = jsonObject.get("flightId").toString();
+            String seatId = jsonObject.get("seatId").toString();
+            String ticketId = jsonObject.get("ticketId").toString();
+            String customerName = jsonObject.get("customer").toString();
+            String bookingReference = UUID.randomUUID().toString();
+
+            Ticket ticket = new Ticket(airline, UUID.fromString(flightId),
+                    UUID.fromString(seatId),
+                    UUID.fromString(ticketId),
+                    customerName,
+                    bookingReference);
+
+            ticketList.add(ticket);
+        }*/
         Booking booking = new Booking(bookingId, bookingTime, tickets, customer);
 
         //Prints for debugging
