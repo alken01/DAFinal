@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.net.Authenticator;
@@ -35,7 +36,11 @@ public class GTicketsController {
 
     private BookingManager bookingManager;
     private Booking booking;
-    private User user;
+    private static List<Ticket> alltickets = new ArrayList<>();
+    private final String email;
+
+    private final List<Booking> bookingList = new ArrayList<>();
+    private WebClient.Builder wCB;
 
     public GTicketsController(WebClient.Builder webClientBuilder,  @Value("${api.key}") String apiKey,
                               @Value("${airline.endpoints}") String[] airlineEndpointsConfig) {
@@ -51,6 +56,8 @@ public class GTicketsController {
         // initialize the cachedFlights
         cachedFlights = new ConcurrentHashMap<>();
         bookingManager = new BookingManager();
+        email = "cpc@gmail.com";
+        wCB = WebClient.builder();
     }
 
 
@@ -171,50 +178,44 @@ public class GTicketsController {
 
     @PostMapping("/confirmQuotes")
     public ResponseEntity<String> confirmQuotes(@RequestBody Quote[] quotes) throws IOException, InterruptedException {
-        //get all the quotes now to use them in the next method
-        allquotes = BookingManager.getAllQuotes();
-        // format quotes for the API
-        List<Map<String, String>> formattedQuotes = new ArrayList<>();
+        //use urls to get tickets and populate them with the quotes; create the booking for the tickets
+        List<JsonObject> ticketList = new ArrayList<JsonObject>();
+        System.out.println(quotes.length);
+
+        ArrayList<Ticket> tickets = new ArrayList<>();
+        // get the tickets from the URL
         for (Quote quote : quotes) {
-            Map<String, String> formattedQuote = new HashMap<>();
-            formattedQuote.put("airline", quote.getAirline());
-            formattedQuote.put("flightId", quote.getFlightId().toString());
-            formattedQuote.put("seatId", quote.getSeatId().toString());
-            formattedQuotes.add(formattedQuote);
-        }
-        System.out.println("Formatted Quotes: " + formattedQuotes);
+            UUID ticketUUID = UUID.randomUUID();
+            String ticketURL = "/flights/" + quote.getFlightId().toString() + "/seats/" + quote.getSeatId().toString() + "/ticket?key=" + apiKey;
 
-        //make POST request
-        String confirmQuotesEndpoint = "http://localhost:8080/api/confirmQuotes?key=" + apiKey;
-        // The email is hardcoded for now for the authentication, but it still does not work, i think this should be handled in auth part
-        HttpClient httpClient = HttpClient.newBuilder()
-                .authenticator(new Authenticator() {
-                    @Override
-                    protected PasswordAuthentication getPasswordAuthentication() {
-                        return new PasswordAuthentication(
-                                "cpc@gmail.com",
-                                "password".toCharArray());
-                    }
-                })
-                .build();
-        //this just prepares the request body
-        String requestBody = gson.toJson(formattedQuotes);
-        System.out.println("Request Body: " + requestBody);
-        //prepares the request
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(confirmQuotesEndpoint))
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build();
+            // Create the URI with the necessary parameters
+            URI putTicketUri = UriComponentsBuilder.fromUriString(ticketURL)
+                    .queryParam("customer", email)
+                    .queryParam("bookingReference", UUID.randomUUID().toString())
+                    .build()
+                    .toUri();
 
-        //gets the response from the server
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        System.out.println("Response: " + response);
-        //check response
-        if (response.statusCode() == 204) {
-            System.out.println("Quotes confirmed successfully.");
-        } else {
-            System.out.println("Failed to confirm quotes. Status code: " + response.statusCode());
+            // Send the PUT request
+            Ticket ticket = this.wCB
+                    .baseUrl(quote.getAirline())
+                    .build()
+                    .put()
+                    .uri(putTicketUri)
+                    .retrieve()
+                    .bodyToMono(Ticket.class)
+                    .block();
+
+            if (ticket != null) {
+                tickets.add(ticket);
+                JsonObject ticketJsonObject = new JsonObject();
+                ticketJsonObject.addProperty("ticketId", ticket.getTicketId().toString()); // Adjust the property name as per your Ticket class
+                ticketList.add(ticketJsonObject);
+                System.out.println("Ticket from URL: " + ticketJsonObject);
+            }
         }
+        booking = BookingManager.createBooking(tickets, email);
+        bookingList.add(booking);
+        alltickets = tickets;
         return ResponseEntity.noContent().build();
     }
     //I think the problem is accessing the endpoint, for some reason i dont haave permission and get error 403
@@ -227,9 +228,7 @@ public class GTicketsController {
     //The method is being called as can be seen by the print statements, but the bookings do not appear
     @GetMapping("/getBookings")
     public ResponseEntity<String> getBookings() {
-        String email = "cpc@gmail.com";
-        booking = BookingManager.createBooking(allquotes, email);
-
+        booking = this.booking;
         // Create a JSONObject for the booking
         JsonObject bookingObject = new JsonObject();
         bookingObject.addProperty("id", booking.getId().toString());
@@ -255,9 +254,10 @@ public class GTicketsController {
         JsonArray bookingsArray = new JsonArray();
         bookingsArray.add(bookingObject);
 
+        // Create Gson instance
+        System.out.println("test" + gson.toJson(bookingsArray));
 
-        // Convert the booking object to JSON and return
-        System.out.println("JSON: " + gson.toJson(bookingsArray));
+        // Convert the booking object to JSON
         return ResponseEntity.ok(gson.toJson(bookingsArray));
     }
 
