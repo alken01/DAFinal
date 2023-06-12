@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import javax.annotation.Resource;
 import java.io.IOException;
 import java.net.Authenticator;
 import java.net.PasswordAuthentication;
@@ -32,7 +33,7 @@ public class GTicketsController {
     private static ConcurrentMap<String, JsonArray> cachedFlights;
     private final HashMap<String, WebClient> airlineEndpoints = new HashMap<>();
 
-    private static List<Quote> allquotes = new ArrayList<>();
+    private static List<Quote> allquotes;
 
     private BookingManager bookingManager;
     private Booking booking;
@@ -40,7 +41,11 @@ public class GTicketsController {
     private final String email;
 
     private final List<Booking> bookingList = new ArrayList<>();
-    private WebClient.Builder wCB;
+
+    @Resource(name="webClientBuilder")
+    private WebClient.Builder webClientBuilder;
+
+
 
     public GTicketsController(WebClient.Builder webClientBuilder,  @Value("${api.key}") String apiKey,
                               @Value("${airline.endpoints}") String[] airlineEndpointsConfig) {
@@ -57,7 +62,7 @@ public class GTicketsController {
         cachedFlights = new ConcurrentHashMap<>();
         bookingManager = new BookingManager();
         email = "cpc@gmail.com";
-        wCB = WebClient.builder();
+
     }
 
 
@@ -179,29 +184,25 @@ public class GTicketsController {
     @PostMapping("/confirmQuotes")
     public ResponseEntity<String> confirmQuotes(@RequestBody Quote[] quotes) throws IOException, InterruptedException {
         //use urls to get tickets and populate them with the quotes; create the booking for the tickets
+        this.allquotes = new ArrayList<>(Arrays.asList(quotes));
         List<JsonObject> ticketList = new ArrayList<JsonObject>();
-        System.out.println(quotes.length);
-
         ArrayList<Ticket> tickets = new ArrayList<>();
         // get the tickets from the URL
         for (Quote quote : quotes) {
-            UUID ticketUUID = UUID.randomUUID();
-            String ticketURL = "/flights/" + quote.getFlightId().toString() + "/seats/" + quote.getSeatId().toString() + "/ticket?key=" + apiKey;
-
-            // Create the URI with the necessary parameters
-            URI putTicketUri = UriComponentsBuilder.fromUriString(ticketURL)
-                    .queryParam("customer", email)
-                    .queryParam("bookingReference", UUID.randomUUID().toString())
-                    .build()
-                    .toUri();
-
+            String ticketURL = "/flights/" + quote.getFlightId().toString() + "/seats/" + quote.getSeatId().toString() + "/ticket";
             // Send the PUT request
-            Ticket ticket = this.wCB
+            Ticket ticket = this.webClientBuilder
                     .baseUrl(quote.getAirline())
                     .build()
                     .put()
-                    .uri(putTicketUri)
-                    .retrieve()
+                    .uri(ticketURL + "?customer=" + email + "&bookingReference=" + UUID.randomUUID().toString() + "&key=" + apiKey
+                            /*uriBuilder -> uriBuilder
+                            .pathSegment("flights", quote.getFlightId().toString(), "seats", quote.getSeatId().toString(), "ticket")
+                            .queryParam("customer", email)
+                            .queryParam("bookingReference", UUID.randomUUID().toString())
+                            .queryParam("key", apiKey)
+                            .build()*/
+                    ).retrieve()
                     .bodyToMono(Ticket.class)
                     .block();
 
@@ -213,12 +214,12 @@ public class GTicketsController {
                 System.out.println("Ticket from URL: " + ticketJsonObject);
             }
         }
-        booking = BookingManager.createBooking(tickets, email);
+        this.booking = BookingManager.createBooking(tickets, email);
         bookingList.add(booking);
         alltickets = tickets;
         return ResponseEntity.noContent().build();
     }
-    //I think the problem is accessing the endpoint, for some reason i dont haave permission and get error 403
+
 
 
 
@@ -228,8 +229,39 @@ public class GTicketsController {
     //The method is being called as can be seen by the print statements, but the bookings do not appear
     @GetMapping("/getBookings")
     public ResponseEntity<String> getBookings() {
-        booking = this.booking;
+        //booking = this.booking;
+        String email = "cpc@gmail.com";
+        booking = BookingManager.createBooking(BookingManager.quote2Ticket(this.allquotes, email, UUID.randomUUID().toString()), email);
+        List<Ticket> tickets = booking.getTickets();
         // Create a JSONObject for the booking
+        JsonObject bookingObject = new JsonObject();
+        bookingObject.addProperty("id", booking.getId().toString());
+        bookingObject.addProperty("time", booking.getTime().toString());
+        bookingObject.addProperty("customer", email);
+
+        // Create a JSONArray for the tickets
+        JsonArray ticketsArray = new JsonArray();
+        for (Ticket ticket : tickets) {
+            JsonObject ticketObject = new JsonObject();
+            ticketObject.addProperty("airline", ticket.getAirline());
+            ticketObject.addProperty("flightId", ticket.getFlightId().toString());
+            ticketObject.addProperty("seatId", ticket.getSeatId().toString());
+            ticketObject.addProperty("ticketId", ticket.getTicketId().toString());
+            ticketObject.addProperty("customer", email);
+            ticketsArray.add(ticketObject);
+        }
+
+        bookingObject.add("tickets", ticketsArray);
+
+        // Create the bookings array and add the booking object
+        JsonArray bookingsArray = new JsonArray();
+        bookingsArray.add(bookingObject);
+
+        // Convert the bookings ar<ray to JSON string
+        String jsonResult = gson.toJson(bookingsArray);
+
+        return ResponseEntity.ok(jsonResult);
+        /*// Create a JSONObject for the booking
         JsonObject bookingObject = new JsonObject();
         bookingObject.addProperty("id", booking.getId().toString());
         bookingObject.addProperty("time", booking.getTime().toString());
@@ -258,7 +290,7 @@ public class GTicketsController {
         System.out.println("test" + gson.toJson(bookingsArray));
 
         // Convert the booking object to JSON
-        return ResponseEntity.ok(gson.toJson(bookingsArray));
+        return ResponseEntity.ok(gson.toJson(bookingsArray));*/
     }
 
 
@@ -332,7 +364,5 @@ public class GTicketsController {
         }
         return null;
     }
-
-
 
 }

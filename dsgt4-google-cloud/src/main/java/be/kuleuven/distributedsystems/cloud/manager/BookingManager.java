@@ -3,13 +3,11 @@ package be.kuleuven.distributedsystems.cloud.manager;
 import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Quote;
 import be.kuleuven.distributedsystems.cloud.entities.Ticket;
-import com.google.gson.JsonObject;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 
 public class BookingManager {
@@ -48,9 +46,16 @@ public class BookingManager {
     }
 
 
-    public static Ticket quote2Ticket(Quote quote, String customer, String bookingReference) {
+    public static List<Ticket> quote2Ticket(List<Quote> quotes, String customer, String bookingReference) {
         //Just creates the ticket from a quote
-        return new Ticket(quote.getAirline(), quote.getFlightId(), quote.getSeatId(), UUID.randomUUID(), customer, bookingReference);
+        List<Ticket> ticketList = new ArrayList<>();
+        if(!quotes.isEmpty()){
+            for(Quote quote: quotes){
+                Ticket ticket = new Ticket(quote.getAirline(), quote.getFlightId(), quote.getSeatId(), UUID.randomUUID(), customer, bookingReference);
+                ticketList.add(ticket);
+            }
+            return ticketList;
+        } else return null;
     }
 
 
