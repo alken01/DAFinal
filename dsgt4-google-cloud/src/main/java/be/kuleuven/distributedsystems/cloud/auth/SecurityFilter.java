@@ -20,8 +20,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
-
 
 @Component
 public class SecurityFilter extends OncePerRequestFilter {
@@ -30,42 +28,36 @@ public class SecurityFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
 
-        // Print the Authorization header
-        //System.out.println("Authorization header: " + header);
-
-        String headerStartString = "Bearer ";
-
-        if (header == null || !header.startsWith(headerStartString)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String token = header.substring(headerStartString.length()); // Extract token from header remove bearer
-
-
         try {
-            // decode the token
-            DecodedJWT jwt = JWT.decode(token);
-            //System.out.println("Authorization jwt: " + jwt);
-
-            // extract email and role from the token
-            String email = jwt.getClaim("email").asString();
-            //System.out.println("Authorization mail: " + email);
-            String role = jwt.getClaim("role").asString(); // adjust this according to your token structure
-            // if role is not 'manager', assign it to be 'user'
-            if(Objects.isNull(role)){
-                role = "user";
+            if (!header.startsWith("Bearer ")) {
+                throw new ServletException("Invalid header"); // Throw exception for invalid header
             }
-            //System.out.println("Authorization role: " + role);
 
-            // create user and set in the authentication
+            String token = header.substring(7); // Extract token from header, removing "Bearer "
+
+            // Decode the token
+            DecodedJWT jwt = JWT.decode(token);
+
+            // Extract email and role from the token
+            String email = jwt.getClaim("email").asString();
+            String role = jwt.getClaim("role").asString(); // Adjust this according to your token structure
+
+            // Assign "customer" role if the role is null
+            role = (role == null) ? "customer" : role;
+
+            // Set the authentication object to let the security context know that the user associated with the request is authenticated
             User user = new User(email, role);
             SecurityContext context = SecurityContextHolder.getContext();
             context.setAuthentication(new FirebaseAuthentication(user));
 
-        } catch (JWTDecodeException exception){
-            //Invalid token
-            //System.out.println("Invalid token");
+        } catch (JWTDecodeException exception) {
+            // Handle invalid token
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid token, authentication failed");
+            return;
+        } catch (ServletException exception) {
+            // Handle invalid header
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid header, authentication failed");
+            return;
         }
 
         filterChain.doFilter(request, response);
@@ -125,3 +117,4 @@ public class SecurityFilter extends OncePerRequestFilter {
         }
     }
 }
+
