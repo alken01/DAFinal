@@ -3,9 +3,8 @@ package be.kuleuven.distributedsystems.cloud.controller;
 import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Quote;
 import be.kuleuven.distributedsystems.cloud.entities.Ticket;
-import be.kuleuven.distributedsystems.cloud.entities.User;
-import be.kuleuven.distributedsystems.cloud.manager.BookingManager;
 import com.google.gson.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,13 +13,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
-
-import java.awt.print.Book;
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequestMapping("/api")
@@ -30,7 +27,9 @@ public class GTicketsController {
     private final HashMap<String, WebClient> airlineEndpoints = new HashMap<>();
     private static ConcurrentMap<String, JsonArray> cachedFlights;
     private final Gson gson = new Gson();
-    private BookingManager bookingManager;
+    @Autowired
+    private FirestoreService firestoreService;
+
 
     public GTicketsController(WebClient.Builder webClientBuilder, @Value("${api.key}") String apiKey,
                               @Value("${airline.endpoints}") String[] airlineEndpointsConfig) {
@@ -45,7 +44,6 @@ public class GTicketsController {
 
         // initialize the cachedFlights
         cachedFlights = new ConcurrentHashMap<>();
-        bookingManager = new BookingManager();
     }
 
 
@@ -170,14 +168,12 @@ public class GTicketsController {
         // get the seat from the url
         JsonObject seat = getResponse(url, airlineEndpoints.get(airline));
 
-        System.out.println("Ticket from URL: " + url);
-
         // return the seat
         return ResponseEntity.ok(seat.toString());
     }
 
     @PostMapping("/confirmQuotes")
-    public ResponseEntity<String> confirmQuotes(@RequestBody Quote[] quotes) throws IOException, InterruptedException {
+    public ResponseEntity<String> confirmQuotes(@RequestBody Quote[] quotes){
         // Get the user email and generate a booking reference
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         String bookingReference = UUID.randomUUID().toString();
@@ -190,9 +186,8 @@ public class GTicketsController {
         // Reserve all the tickets
         Booking booking = bookTickets(quotes, email, bookingReference);
 
-        // TODO: save the booking in the firestore
-        //  Something like this:
-        // BookingManager.saveBooking(booking);
+        // Save the booking in the firestore
+        firestoreService.saveBooking(booking);
 
         // Return 200 OK
         return ResponseEntity.ok().build();
@@ -249,18 +244,26 @@ public class GTicketsController {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
 
         // Get the bookings from the firestore
-        // List<Booking> bookings = BookingManager.getBookings(email);
-        //
-        // // Return the bookings
-        // return ResponseEntity.ok(gson.toJson(bookings));
+        List<Booking> bookings = firestoreService.getBookings(email);
 
-        return null;
+        // make a booking json array and add all the bookings to it
+        JsonArray bookingArray = new JsonArray();
+        for (Booking booking : bookings) {
+            bookingArray.add(booking.getJsonObject(booking.getCustomer()));
+        }
+
+        // Return the bookings
+        return ResponseEntity.ok(bookingArray.toString());
     }
 
+
     private JsonObject getResponse(String endpoint, WebClient webClient) {
+        if(webClient == null || endpoint == null) return new JsonObject();
+
         // backoff retry mechanism
         int delayMs = 10;
         int maxRetries = 5;
+
 
         for (int retries = 0; retries < maxRetries; retries++) {
             // Make the API request to get the flights from the airline
@@ -270,7 +273,6 @@ public class GTicketsController {
                         .retrieve()
                         .bodyToMono(String.class)
                         .block();
-                System.out.println("Calling " + endpoint);
                 return JsonParser.parseString(response).getAsJsonObject();
             } catch (Exception e) {
                 // Wait before making the next retry
@@ -283,7 +285,7 @@ public class GTicketsController {
         }
 
         // Fallback mechanism
-        System.out.println("GET: Falling back to empty response");
+        System.out.println("GET: Falling back to empty response for " + endpoint);
         return new JsonObject();
     }
 
