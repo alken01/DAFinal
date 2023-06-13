@@ -1,5 +1,7 @@
 package be.kuleuven.distributedsystems.cloud.entities;
 
+import com.google.gson.JsonObject;
+
 public class User {
 
     private String email;

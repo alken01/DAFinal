@@ -101,4 +101,48 @@ public class FirestoreService {
 
         return new Ticket(airline, flightId, seatId, ticketId, customer, bookingReference);
     }
+
+    public List<Booking> getAllBookings() {
+        try {
+            // Get the bookings from the database
+            QuerySnapshot bookingsSnapshot = firestore.collection("bookings").get().get();
+            // Parse the bookings
+            return bookingsSnapshot.getDocuments().stream()
+                    .map(this::parseBookingFromSnapshot)
+                    .collect(Collectors.toList());
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+    }
+
+    public List<String> getBestCustomers() {
+        try {
+            // Get the bookings from the database
+            QuerySnapshot bookingsSnapshot = firestore.collection("bookings").get().get();
+            // Parse the bookings
+            List<Booking> bookings = bookingsSnapshot.getDocuments().stream()
+                    .map(this::parseBookingFromSnapshot).toList();
+
+            // Create a map of customers and their number of bookings
+            Map<String, Integer> customerBookings = new HashMap<>();
+            bookings.forEach(booking -> {
+                if (customerBookings.containsKey(booking.getCustomer())) {
+                    customerBookings.put(booking.getCustomer(), customerBookings.get(booking.getCustomer()) + 1);
+                } else {
+                    customerBookings.put(booking.getCustomer(), 1);
+                }
+            });
+
+            // Create a list of users
+            List<String> users = new ArrayList<>();
+            customerBookings.forEach((customer, role) -> users.add(customer));
+
+            // Return the users
+            return users;
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+    }
 }

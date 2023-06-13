@@ -195,7 +195,7 @@ a {
 }
 
 .seats-button {
-    background: #006994;
+    background: #2e2e2e;
     border: none;
     border-radius: 4px;
     color: white;
@@ -231,7 +231,7 @@ a {
 }
 
 .quote-remove-button {
-    background: #006994;
+    background: #2e2e2e;
     border: none;
     border-radius: 4px;
     color: white;
@@ -246,7 +246,7 @@ a {
 
 .quote-confirm-button {
     align-items: center;
-    background: #006994;
+    background: #2e2e2e;
     border: none;
     border-radius: 4px;
     color: white;

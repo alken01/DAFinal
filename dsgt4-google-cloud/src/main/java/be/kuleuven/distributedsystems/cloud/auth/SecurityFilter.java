@@ -28,9 +28,15 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        // remove the Bearer from the authorization header
+        String authorizationHeader = request.getHeader("Authorization");
+        if(authorizationHeader == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String token = authorizationHeader.split(" ")[1];
         try {
-            // remove the Bearer from the authorization header
-            String token = request.getHeader("Authorization").split(" ")[1];
             DecodedJWT jwt = JWT.decode(token);
 
             // extract email and role from the token
