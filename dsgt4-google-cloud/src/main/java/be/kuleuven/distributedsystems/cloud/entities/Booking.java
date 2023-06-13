@@ -1,13 +1,10 @@
 package be.kuleuven.distributedsystems.cloud.entities;
 
-import java.io.Serializable;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 public class Booking {
     private UUID id;
@@ -40,5 +37,23 @@ public class Booking {
 
     public String getCustomer() {
         return this.customer;
+    }
+
+    public JsonObject getJsonObject(String email){
+        // Create a JSONObject for the booking
+        JsonObject bookingObject = new JsonObject();
+        bookingObject.addProperty("id", id.toString());
+        bookingObject.addProperty("time", time.toString());
+        bookingObject.addProperty("customer", email);
+
+        // Create a JSONArray for the tickets
+        JsonArray ticketsArray = new JsonArray();
+        for (Ticket ticket : tickets) {
+            JsonObject ticketObject = ticket.getJsonObject(email);
+            ticketsArray.add(ticketObject);
+        }
+
+        bookingObject.add("tickets", ticketsArray);
+        return bookingObject;
     }
 }

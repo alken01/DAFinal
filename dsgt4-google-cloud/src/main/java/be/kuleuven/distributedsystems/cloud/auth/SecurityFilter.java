@@ -96,7 +96,7 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         @Override
         public Object getCredentials() {
-            return null;
+            return user;
         }
 
         @Override
@@ -121,7 +121,7 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         @Override
         public String getName() {
-            return null;
+            return this.user.getEmail();
         }
     }
 }

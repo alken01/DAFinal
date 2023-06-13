@@ -42,6 +42,9 @@ public class Quote {
         this.seatId = seatId;
     }
 
+    public Ticket getTicket(String customer, String bookingReference) {
+        return new Ticket(this.airline, this.flightId, this.seatId, UUID.randomUUID(), customer, bookingReference);
+    }
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof Quote)) {
@@ -57,4 +60,5 @@ public class Quote {
     public int hashCode() {
         return this.airline.hashCode() * this.flightId.hashCode() * this.seatId.hashCode();
     }
+
 }
