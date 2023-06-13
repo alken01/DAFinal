@@ -28,35 +28,14 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String header = request.getHeader("Authorization");
-
-        // Print the Authorization header
-        //System.out.println("Authorization header: " + header);
-
-        String headerStartString = "Bearer ";
-
-        if (header == null || !header.startsWith(headerStartString)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String token = header.substring(headerStartString.length()); // Extract token from header remove bearer
-
-
         try {
-            // decode the token
+            // remove the Bearer from the authorization header
+            String token = request.getHeader("Authorization").split(" ")[1];
             DecodedJWT jwt = JWT.decode(token);
-            //System.out.println("Authorization jwt: " + jwt);
 
             // extract email and role from the token
             String email = jwt.getClaim("email").asString();
-            //System.out.println("Authorization mail: " + email);
-            String role = jwt.getClaim("role").asString(); // adjust this according to your token structure
-            // if role is not 'manager', assign it to be 'user'
-            if(Objects.isNull(role)){
-                role = "user";
-            }
-            //System.out.println("Authorization role: " + role);
+            String role = jwt.getClaim("role").asString();
 
             // create user and set in the authentication
             User user = new User(email, role);
@@ -65,7 +44,7 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         } catch (JWTDecodeException exception){
             //Invalid token
-            //System.out.println("Invalid token");
+            System.out.println("Invalid token");
         }
 
         filterChain.doFilter(request, response);
@@ -89,14 +68,13 @@ public class SecurityFilter extends OncePerRequestFilter {
         public Collection<? extends GrantedAuthority> getAuthorities() {
             if (user.isManager()) {
                 return List.of(new SimpleGrantedAuthority("manager"));
-            } else {
-                return new ArrayList<>();
             }
+            return new ArrayList<>();
         }
 
         @Override
         public Object getCredentials() {
-            return user;
+            return this.user;
         }
 
         @Override

@@ -14,7 +14,7 @@
            Please set the following parameter for the filename
            for the final zip to `cloud-[1 or 2].[firstname].[lastname]`.
         ************************************************************* -->
-        <zip.filename>cloud-2.firstname.lastname</zip.filename>
+        <zip.filename>cloud-2.alken.rrokaj</zip.filename>
 
         <java.version>17</java.version>
         <maven.compiler.target>17</maven.compiler.target>
@@ -90,6 +90,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>9.1.1</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.auth0</groupId>
             <artifactId>java-jwt</artifactId>
             <version>4.0.0</version>
@@ -150,7 +156,7 @@
                 <version>2.4.4</version>
                 <configuration>
                     <version>1</version>
-                    <projectId>TODO-level-2</projectId>
+                    <projectId>dafinal-50ac9</projectId>
                     <cloudSdkVersion>404.0.0</cloudSdkVersion>
                 </configuration>
             </plugin>
