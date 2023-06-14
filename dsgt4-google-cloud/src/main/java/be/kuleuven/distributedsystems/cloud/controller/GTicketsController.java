@@ -1,128 +1,89 @@
 package be.kuleuven.distributedsystems.cloud.controller;
-
 import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Quote;
-import be.kuleuven.distributedsystems.cloud.entities.Ticket;
-import be.kuleuven.distributedsystems.cloud.entities.User;
+import be.kuleuven.distributedsystems.cloud.service.ExternalAirlineService;
 import com.google.gson.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.util.UriComponentsBuilder;
-import reactor.core.publisher.Mono;
-import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
 @RequestMapping("/api")
 public class GTicketsController {
 
-    private final int MAX_RETRIES = 5;
-    private final int WAIT_MS = 100;
-    private final String apiKey;
-    private final HashMap<String, WebClient> airlineEndpoints = new HashMap<>();
     private final Gson gson = new Gson();
     private final FirestoreService firestoreService;
+    private final ExternalAirlineService externalAirlineService;
 
     @Autowired
-    public GTicketsController(FirestoreService firestoreService, WebClient.Builder webClientBuilder, @Value("${api.key}") String apiKey,
-                              @Value("${airline.endpoints}") String[] airlineEndpointsConfig) {
-        // initialize the webclients for the airlines from the application.properties
-        for (String airline : airlineEndpointsConfig) {
-            // keep only the first word after the http://
-            airlineEndpoints.put(airline, webClientBuilder.baseUrl(airline)
-                    .build());
-        }
-        // set the api key from the application.properties
-        this.apiKey = apiKey;
+    public GTicketsController(FirestoreService firestoreService, ExternalAirlineService externalAirlineService) {
         this.firestoreService = firestoreService;
+        this.externalAirlineService = externalAirlineService;
     }
 
     @GetMapping("/getFlights")
     public ResponseEntity<String> getFlights() {
-        String endpoint = UriComponentsBuilder.fromPath("/flights")
-                .queryParam("key", apiKey)
-                .toUriString();
-        // get the flights from the airlines
-        JsonArray flightsArray = new JsonArray();
-        for (Map.Entry<String, WebClient> entry : airlineEndpoints.entrySet()) {
-            JsonArray flightArray = getResponse(endpoint, entry.getValue())
-                    .getAsJsonObject("_embedded")
-                    .getAsJsonArray("flights");
-            flightsArray.addAll(flightArray);
-        }
+        // get the flights from the external airlines
+        JsonArray externalFlightsArray = externalAirlineService.getFlights();
 
         // convert the flights to JSON String and return it
-        return ResponseEntity.ok(gson.toJson(flightsArray));
+        return ResponseEntity.ok(gson.toJson(externalFlightsArray));
     }
 
     @GetMapping("/getFlight")
     public ResponseEntity<String> getFlight(@RequestParam String airline, @RequestParam String flightId) {
-        // get the url
-        String flightURL = UriComponentsBuilder.fromPath("/flights/{flightId}")
-                .queryParam("key", apiKey)
-                .buildAndExpand(flightId)
-                .toUriString();
-
-        // get the flight from the url
-        JsonObject flightsObject = getResponse(flightURL, airlineEndpoints.get(airline));
+        JsonObject flightObject = new JsonObject();
+        // check if the airline is external
+        if(externalAirlineService.isExternal(airline)) {
+            flightObject = externalAirlineService.getFlight(airline, flightId);
+        }
+        // TODO: else it is internal
 
         // return the flight
-        return ResponseEntity.ok(flightsObject.toString());
+        return ResponseEntity.ok(flightObject.toString());
     }
 
     @GetMapping("/getFlightTimes")
     public ResponseEntity<String[]> getFlightTimes(@RequestParam String airline, @RequestParam String flightId) {
-        // get the url
-        String timeURL = UriComponentsBuilder.fromPath("/flights/{flightId}/times")
-                .queryParam("key", apiKey)
-                .buildAndExpand(flightId)
-                .toUriString();
+        String[] flightTimes = new String[0];
 
-        // get the flight times from the flight as a string array
-        JsonArray stringList = getResponse(timeURL, airlineEndpoints.get(airline))
-                .getAsJsonObject("_embedded")
-                .getAsJsonArray("stringList");
-
-        String[] stringArray = new String[stringList.size()];
-        for (int i = 0; i < stringList.size(); i++) {
-            stringArray[i] = stringList.get(i).getAsString();
+        // check if the airline is external
+        if(externalAirlineService.isExternal(airline)) {
+            flightTimes = externalAirlineService.getFlightTimes(airline, flightId);
         }
+        // TODO: else it is internal
 
         // Order the flight times and return them
-        Arrays.sort(stringArray);
-        return ResponseEntity.ok(stringArray);
+        Arrays.sort(flightTimes);
+        return ResponseEntity.ok(flightTimes);
     }
 
     @GetMapping("/getAvailableSeats")
     public ResponseEntity<String> getAvailableSeats(@RequestParam String airline,
-                                                    @RequestParam String flightId, @RequestParam String time) {
-        // get the URL
-        String seatsURL = UriComponentsBuilder.fromPath("/flights/{flightId}/seats")
-                .queryParam("time", time)
-                .queryParam("available", "true")
-                .queryParam("key", apiKey)
-                .buildAndExpand(flightId)
-                .toUriString();
+                                                    @RequestParam String flightId,
+                                                    @RequestParam String time) {
+        JsonArray seatList = new JsonArray();
 
-        // get the seats from the URL
-        JsonArray seatList = getResponse(seatsURL, airlineEndpoints.get(airline))
-                .getAsJsonObject("_embedded")
-                .getAsJsonArray("seats");
+        // check if the airline is external
+        if(externalAirlineService.isExternal(airline)) {
+            seatList = externalAirlineService.getAvailableSeats(airline, flightId, time);
+        }
+        // TODO: else it is internal
 
+        // sort the seats and return them
+        return ResponseEntity.ok(sortSeats(seatList).toString());
+    }
+
+    private JsonObject sortSeats(JsonArray seatList) {
         // group the seats based on type
         Map<String, List<JsonObject>> seatsByType = new HashMap<>();
         for (JsonElement seatElement : seatList) {
             JsonObject seatObject = seatElement.getAsJsonObject();
             String type = seatObject.get("type").getAsString();
             // create a new list if the type is not yet in the map
-            if (!seatsByType.containsKey(type)) {
-                seatsByType.put(type, new ArrayList<>());
-            }
+            if (!seatsByType.containsKey(type)) seatsByType.put(type, new ArrayList<>());
             // add the seat to the list
             seatsByType.get(type).add(seatObject);
         }
@@ -135,99 +96,68 @@ public class GTicketsController {
         // construct the final result in the requested format
         JsonObject result = new JsonObject();
         for (Map.Entry<String, List<JsonObject>> entry : seatsByType.entrySet()) {
-            List<JsonObject> seats = entry.getValue();
             JsonArray seatArray = new JsonArray();
             // add all the seats to the array
-            for (JsonObject seat : seats) seatArray.add(seat);
+            for (JsonObject seat : entry.getValue()) {
+                seatArray.add(seat);
+            }
             result.add(entry.getKey(), seatArray);
         }
-
-        // return the formatted seat data
-        return ResponseEntity.ok(gson.toJson(result));
+        return result;
     }
 
 
     @GetMapping("/getSeat")
-    public ResponseEntity<String> getSeat(@RequestParam String airline, @RequestParam String flightId,
+    public ResponseEntity<String> getSeat(@RequestParam String airline,
+                                          @RequestParam String flightId,
                                           @RequestParam String seatId) {
-        // get the seat url
-        String url = UriComponentsBuilder.fromPath("/flights/{flightId}/seats/{seatId}")
-                .queryParam("key", apiKey)
-                .buildAndExpand(flightId, seatId)
-                .toUriString();
+        JsonObject seatList = new JsonObject();
 
-        // get the seat from the url
-        JsonObject seat = getResponse(url, airlineEndpoints.get(airline));
+        // check if the airline is external
+        if(externalAirlineService.isExternal(airline)) {
+            seatList = externalAirlineService.getSeat(airline, flightId, seatId);
+        }
+        // TODO: else it is internal
 
         // return the seat
-        return ResponseEntity.ok(seat.toString());
+        return ResponseEntity.ok(seatList.toString());
     }
 
     @PostMapping("/confirmQuotes")
-    public ResponseEntity<String> confirmQuotes(@RequestBody Quote[] quotes){
+    public ResponseEntity<String> confirmQuotes(@RequestBody Quote[] quotes) {
         // Get the user email and generate a booking reference
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         String bookingReference = UUID.randomUUID().toString();
 
-        // Check if ALL the tickets are still available
-        if(!ticketsAvailable(quotes)) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        // seperate the quotes into internal and external
+        List<Quote> internalQuotes = new ArrayList<>();
+        List<Quote> externalQuotes = new ArrayList<>();
+
+        for (Quote quote : quotes) {
+            if(externalAirlineService.isExternal(quote.getAirline())) {
+                externalQuotes.add(quote);
+            } else {
+                internalQuotes.add(quote);
+            }
         }
 
-        // Reserve all the tickets
-        Booking booking = bookTickets(quotes, email, bookingReference);
+        // get the bookings from the external airlines
+        Booking externalBookingsArray = externalAirlineService.confirmQuotes(externalQuotes, email, bookingReference);
+
+        // get the bookings from the internal airlines
+        // Booking internalBookingsArray = firestoreService.confirmQuotes(internalQuotes, email, bookingReference);
+
+        // combine the bookings
+        // Booking[] bookings = new Booking[externalBookingsArray.length + internalBookingsArray.length];
+        // System.arraycopy(externalBookingsArray, 0, bookings, 0, externalBookingsArray.length);
+        // System.arraycopy(internalBookingsArray, 0, bookings, externalBookingsArray.length, internalBookingsArray.length);
 
         // Save the booking in the firestore
-        firestoreService.saveBooking(booking);
+        // firestoreService.saveBooking(bookings);
 
         // Return 200 OK
         return ResponseEntity.ok().build();
     }
-
-    private boolean ticketsAvailable(Quote[] quotes){
-        for (Quote quote : quotes) {
-            // Get the URL to check if they are still available
-            String getTicketURL = UriComponentsBuilder.fromPath("/flights/{flightId}/seats/{seatId}/ticket")
-                    .queryParam("key", apiKey)
-                    .buildAndExpand(quote.getFlightId(), quote.getSeatId())
-                    .toUriString();
-
-            // Get the airline endpoint
-            WebClient airlineEndpoint = airlineEndpoints.get(quote.getAirline());
-
-            // Call the URL and get the response
-            JsonObject getTicket = getResponse(getTicketURL, airlineEndpoint);
-
-            // Check if the ticket is available
-            if(!getTicket.equals(new JsonObject())) return false;
-        }
-        return true;
-    }
-
-    private Booking bookTickets(Quote[] quotes, String email, String bookingReference){
-        List<Ticket> tickets = new ArrayList<>();
-        for (Quote quote : quotes) {
-            // Get the URL
-            String putTicketURL = UriComponentsBuilder.fromPath("/flights/{flightId}/seats/{seatId}/ticket")
-                    .queryParam("customer", email)
-                    .queryParam("bookingReference", bookingReference)
-                    .queryParam("key", apiKey)
-                    .buildAndExpand(quote.getFlightId(), quote.getSeatId())
-                    .toUriString();
-
-            // Get the airline endpoint
-            WebClient airlineEndpoint = airlineEndpoints.get(quote.getAirline());
-
-            // Reserve all the seats
-            putRequest(putTicketURL, airlineEndpoint, new JsonObject());
-
-            // Create a ticket and add it to the list
-            Ticket ticket = quote.getTicket(email, bookingReference);
-            tickets.add(ticket);
-        }
-        return new Booking(UUID.fromString(bookingReference), LocalDateTime.now(), tickets, email);
-    }
-
 
     @GetMapping("/getBookings")
     public ResponseEntity<String> getBookings() {
@@ -275,62 +205,6 @@ public class GTicketsController {
 
         // Return the bookings
         return ResponseEntity.ok(customerArray.toString());
-    }
-
-
-
-    private JsonObject getResponse(String endpoint, WebClient webClient) {
-        if(webClient == null || endpoint == null) return new JsonObject();
-
-        // backoff retry mechanism
-        for (int retries = 0; retries < MAX_RETRIES; retries++) {
-            // Make the API request to get the flights from the airline
-            try {
-                String response = webClient.get()
-                        .uri(endpoint)
-                        .retrieve()
-                        .bodyToMono(String.class)
-                        .block();
-                return JsonParser.parseString(response).getAsJsonObject();
-            } catch (Exception e) {
-                // Wait before making the next retry
-                try {
-                    Thread.sleep(WAIT_MS);
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
-
-        // Fallback mechanism
-        System.out.println("GET: Falling back to empty response for " + endpoint);
-        return new JsonObject();
-    }
-
-    private void putRequest(String endpoint, WebClient webClient, JsonObject requestBody) {
-        // Backoff retry mechanism
-        for (int retries = 0; retries < MAX_RETRIES; retries++) {
-            // Make the API request to update the ticket
-            try {
-                webClient.put()
-                        .uri(endpoint)
-                        .body(Mono.just(requestBody.toString()), String.class)
-                        .retrieve()
-                        .toBodilessEntity()
-                        .block();
-                return;
-            } catch (Exception e) {
-                // Wait before making the next retry
-                try {
-                    Thread.sleep(WAIT_MS);
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
-
-        // Fallback mechanism
-        System.out.println("PUT: Failed to update the ticket after multiple retries.");
     }
 
 }

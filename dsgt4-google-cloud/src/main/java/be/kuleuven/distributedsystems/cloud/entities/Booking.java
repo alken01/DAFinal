@@ -3,6 +3,7 @@ package be.kuleuven.distributedsystems.cloud.entities;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,15 +44,19 @@ public class Booking {
         // Create a JSONObject for the booking
         JsonObject bookingObject = new JsonObject();
         bookingObject.addProperty("id", id.toString());
-        bookingObject.addProperty("time", time.toString());
-        bookingObject.addProperty("customer", email);
 
-        // Create a JSONArray for the tickets
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+        String formattedTime = time.format(formatter);
+        bookingObject.addProperty("time", formattedTime);
+
+        // Create a JsonArray for the tickets
         JsonArray ticketsArray = new JsonArray();
         for (Ticket ticket : tickets) {
             JsonObject ticketObject = ticket.getJsonObject(email);
             ticketsArray.add(ticketObject);
         }
+
+        bookingObject.addProperty("customer", email);
 
         bookingObject.add("tickets", ticketsArray);
         return bookingObject;
