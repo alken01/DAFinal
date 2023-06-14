@@ -1,10 +1,12 @@
 package be.kuleuven.distributedsystems.cloud.controller;
+import be.kuleuven.distributedsystems.cloud.auth.SecurityFilter;
 import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Quote;
 import be.kuleuven.distributedsystems.cloud.service.ExternalAirlineService;
 import com.google.gson.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
@@ -129,6 +131,14 @@ public class GTicketsController {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         String bookingReference = UUID.randomUUID().toString();
 
+        //temp
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        // Cast the authentication object to FirebaseAuthentication
+        SecurityFilter.FirebaseAuthentication firebaseAuthentication = (SecurityFilter.FirebaseAuthentication) authentication;
+        // Access the uid property from the user object
+        String uid = firebaseAuthentication.getUid();
+        // end temp
+
         // seperate the quotes into internal and external
         List<Quote> internalQuotes = new ArrayList<>();
         List<Quote> externalQuotes = new ArrayList<>();
@@ -142,7 +152,7 @@ public class GTicketsController {
         }
 
         // get the bookings from the external airlines
-        Booking externalBookingsArray = externalAirlineService.confirmQuotes(externalQuotes, email, bookingReference);
+        //Booking externalBookingsArray = externalAirlineService.confirmQuotes(externalQuotes, email, bookingReference);
 
         // get the bookings from the internal airlines
         // Booking internalBookingsArray = firestoreService.confirmQuotes(internalQuotes, email, bookingReference);
@@ -161,11 +171,14 @@ public class GTicketsController {
 
     @GetMapping("/getBookings")
     public ResponseEntity<String> getBookings() {
-        // Get the user email
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        // Cast the authentication object to FirebaseAuthentication
+        SecurityFilter.FirebaseAuthentication firebaseAuthentication = (SecurityFilter.FirebaseAuthentication) authentication;
+        // Access the uid property from the user object
+        String uid = firebaseAuthentication.getUid();
 
         // Get the bookings from the firestore
-        List<Booking> bookings = firestoreService.getBookings();
+        List<Booking> bookings = firestoreService.getBookings(uid);
 
         // make a booking json array and add all the bookings to it
         JsonArray bookingArray = new JsonArray();

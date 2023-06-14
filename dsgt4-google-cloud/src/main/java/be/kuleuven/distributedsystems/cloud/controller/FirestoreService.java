@@ -4,6 +4,7 @@ import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Ticket;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.*;
+import com.google.firebase.auth.FirebaseAuth;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -20,16 +21,14 @@ import java.util.stream.Collectors;
 public class FirestoreService {
 
     private final Firestore firestore;
-    private final String tempUID;
 
     @Autowired
     public FirestoreService(Firestore firestore) {
         this.firestore = firestore;
-        this.tempUID = "0jnFsjWIlROW9obwecphEoCPYsB2";
     }
 
-    public void saveBooking(Booking booking) {
-        DocumentReference userRef = firestore.collection("users").document(this.tempUID);
+    public void saveBooking(Booking booking, String uid) {
+        DocumentReference userRef = firestore.collection("users").document(uid);
         DocumentReference bookingRef = userRef.collection("bookings").document(booking.getId().toString());
 
         booking.getTickets().forEach(ticket -> {
@@ -58,9 +57,9 @@ public class FirestoreService {
         return bookingMap;
     }
 
-    public List<Booking> getBookings() {
+    public List<Booking> getBookings(String uid) {
         try {
-            DocumentReference userRef = firestore.collection("users").document(this.tempUID);
+            DocumentReference userRef = firestore.collection("users").document(uid);
             QuerySnapshot bookingsSnapshot = userRef.collection("bookings").get().get();
 
             // Parse the bookings

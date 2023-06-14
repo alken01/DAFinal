@@ -75,7 +75,7 @@ public class SecurityFilter extends OncePerRequestFilter {
         return !path.startsWith("/api");
     }
 
-    private static class FirebaseAuthentication implements Authentication {
+    public static class FirebaseAuthentication implements Authentication {
         private final User user;
 
         FirebaseAuthentication(User user) {
@@ -119,6 +119,10 @@ public class SecurityFilter extends OncePerRequestFilter {
         @Override
         public String getName() {
             return this.user.getEmail();
+        }
+
+        public String getUid() {
+            return this.user.getUid();
         }
     }
 }
