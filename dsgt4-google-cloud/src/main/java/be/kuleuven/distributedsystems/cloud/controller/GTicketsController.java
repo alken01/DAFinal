@@ -131,13 +131,11 @@ public class GTicketsController {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         String bookingReference = UUID.randomUUID().toString();
 
-        //temp
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         // Cast the authentication object to FirebaseAuthentication
         SecurityFilter.FirebaseAuthentication firebaseAuthentication = (SecurityFilter.FirebaseAuthentication) authentication;
         // Access the uid property from the user object
         String uid = firebaseAuthentication.getUid();
-        // end temp
 
         // seperate the quotes into internal and external
         List<Quote> internalQuotes = new ArrayList<>();
@@ -163,7 +161,7 @@ public class GTicketsController {
         // System.arraycopy(internalBookingsArray, 0, bookings, externalBookingsArray.length, internalBookingsArray.length);
 
         // Save the booking in the firestore
-        // firestoreService.saveBooking(bookings);
+        // firestoreService.saveBooking(bookings, uid);
 
         // Return 200 OK
         return ResponseEntity.ok().build();
