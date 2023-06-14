@@ -1,4 +1,4 @@
-package be.kuleuven.distributedsystems.cloud.controller;
+package be.kuleuven.distributedsystems.cloud.service;
 
 import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Ticket;

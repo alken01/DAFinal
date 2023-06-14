@@ -2,7 +2,9 @@ package be.kuleuven.distributedsystems.cloud.controller;
 import be.kuleuven.distributedsystems.cloud.auth.SecurityFilter;
 import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Quote;
+import be.kuleuven.distributedsystems.cloud.entities.User;
 import be.kuleuven.distributedsystems.cloud.service.ExternalAirlineService;
+import be.kuleuven.distributedsystems.cloud.service.FirestoreService;
 import com.google.gson.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -127,15 +129,10 @@ public class GTicketsController {
 
     @PostMapping("/confirmQuotes")
     public ResponseEntity<String> confirmQuotes(@RequestBody Quote[] quotes) {
-        // Get the user email and generate a booking reference
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        // Get the user uid and generate a booking reference
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String uid = user.getUid();
         String bookingReference = UUID.randomUUID().toString();
-
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        // Cast the authentication object to FirebaseAuthentication
-        SecurityFilter.FirebaseAuthentication firebaseAuthentication = (SecurityFilter.FirebaseAuthentication) authentication;
-        // Access the uid property from the user object
-        String uid = firebaseAuthentication.getUid();
 
         // seperate the quotes into internal and external
         List<Quote> internalQuotes = new ArrayList<>();
