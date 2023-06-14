@@ -113,7 +113,6 @@ export class Cart extends Component {
                 <button
                   class="quote-confirm-button"
                   onClick="${async () => {
-                  console.log(JSON.stringify(this.state.quotes));
                     const response = await fetch("/api/confirmQuotes", {
                       method: "POST",
                       body: JSON.stringify(this.state.quotes),
@@ -126,8 +125,6 @@ export class Cart extends Component {
                     });
                     if (response.ok) {
                       setQuotes([]);
-
-    // TODO: when OK: add booking to Firestore
                       route("/account");
                     }
                   }}"

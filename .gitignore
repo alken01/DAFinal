@@ -39,3 +39,5 @@ gs://bucket-name/
 
 # Google Cloud configuration files (optional, remove if not used)
 google-cloud.json
+.vscode/settings.json
+dsgt4-google-cloud/src/main/resources/firebase.json

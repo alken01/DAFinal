@@ -1,10 +1,12 @@
 package be.kuleuven.distributedsystems.cloud;
 
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.FirestoreOptions;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.hateoas.config.EnableHypermediaSupport;
 import org.springframework.hateoas.config.HypermediaWebClientConfigurer;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -13,6 +15,7 @@ import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Objects;
 
@@ -27,7 +30,7 @@ public class Application {
         ApplicationContext context = SpringApplication.run(Application.class, args);
 
         // TODO: (level 2) load this data into Firestore
-        String data = new String(new ClassPathResource("data.json").getInputStream().readAllBytes());
+        // String data = new String(new ClassPathResource("data.json").getInputStream().readAllBytes());
     }
 
     @Bean
@@ -55,5 +58,16 @@ public class Application {
         DefaultHttpFirewall firewall = new DefaultHttpFirewall();
         firewall.setAllowUrlEncodedSlash(true);
         return firewall;
+    }
+
+    @Bean
+    public Firestore firestore() throws IOException {
+        FileInputStream serviceAccount = new FileInputStream("src/main/resources/firebase.json");
+
+        FirestoreOptions firestoreOptions = FirestoreOptions.newBuilder()
+                .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                .build();
+
+        return firestoreOptions.getService();
     }
 }

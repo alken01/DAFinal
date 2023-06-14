@@ -36,6 +36,7 @@ export class Login extends Component {
           <label>Password</label>
         </div>
         <div class="login-button" onClick="${() => this.login()}">Login</div>
+        <div class="login-button" onClick="${() => this.register()}">Register</div>
       </div>
     `;
   }
@@ -45,22 +46,24 @@ export class Login extends Component {
      const password = document.querySelector("input.password").value;
      try {
        const userCredential = await signInWithEmailAndPassword(getAuth(), email, password);
-       console.log(userCredential.user.uid);
-
-       const docRef = await setDoc(doc(getDb(), "users", userCredential.user.uid), {
-         email: email
-       });
-       //console.log("id of docRef: ", docRef.id);
        location.assign("/");
      } catch (e) {
-       if (e.code === "auth/user-not-found") {
-         console.log('trying to add user');
-         await createUserWithEmailAndPassword(getAuth(), email, password);
-         location.assign("/");
-       } else {
          throw e;
        }
      }
-   }
 
+
+  async register() {
+     const email = document.querySelector("input.email").value;
+     const password = document.querySelector("input.password").value;
+     try {
+       const userCredential = await createUserWithEmailAndPassword(getAuth(), email, password);
+       const docRef = await setDoc(doc(getDb(), "users", userCredential.user.uid), {
+         email: email
+       });
+       location.assign("/");
+     } catch (e) {
+         throw e;
+       }
+     }
 }

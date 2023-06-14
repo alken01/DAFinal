@@ -1,7 +1,6 @@
 package be.kuleuven.distributedsystems.cloud.entities;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.google.gson.JsonObject;
 import java.util.UUID;
 
 public class Ticket {
@@ -63,5 +62,16 @@ public class Ticket {
     @Override
     public int hashCode() {
         return this.airline.hashCode() * this.flightId.hashCode() * this.seatId.hashCode() * this.ticketId.hashCode();
+    }
+
+    public JsonObject getJsonObject(String email){
+        JsonObject ticketObject = new JsonObject();
+        ticketObject.addProperty("airline", airline);
+        ticketObject.addProperty("flightId", flightId.toString());
+        ticketObject.addProperty("seatId", seatId.toString());
+        ticketObject.addProperty("ticketId", ticketId.toString());
+        ticketObject.addProperty("customer", email);
+
+        return ticketObject;
     }
 }
