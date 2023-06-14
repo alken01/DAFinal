@@ -165,7 +165,7 @@ public class GTicketsController {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
 
         // Get the bookings from the firestore
-        List<Booking> bookings = firestoreService.getBookings(email);
+        List<Booking> bookings = firestoreService.getBookings();
 
         // make a booking json array and add all the bookings to it
         JsonArray bookingArray = new JsonArray();
