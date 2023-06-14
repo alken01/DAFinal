@@ -33,29 +33,12 @@ public class FirestoreService {
 
         booking.getTickets().forEach(ticket -> {
             DocumentReference ticketRef = bookingRef.collection("tickets").document(ticket.getTicketId().toString());
-            ticketRef.set(createTicketMap(ticket));
+            ticketRef.set(ticket.getTicketMap());
         });
 
-        bookingRef.set(createBookingMap(booking));
+        bookingRef.set(booking.getBookingMap());
     }
 
-    private Map<String, Object> createTicketMap(Ticket ticket) {
-        Map<String, Object> ticketMap = new HashMap<>();
-        ticketMap.put("airline", ticket.getAirline());
-        ticketMap.put("bookingReference", ticket.getBookingReference());
-        ticketMap.put("seatId", ticket.getSeatId().toString());
-        ticketMap.put("flightId", ticket.getFlightId().toString());
-        ticketMap.put("customer", ticket.getCustomer());
-        ticketMap.put("status", "booked");
-        return ticketMap;
-    }
-
-    private Map<String, Object> createBookingMap(Booking booking) {
-        Map<String, Object> bookingMap = new HashMap<>();
-        bookingMap.put("time", LocalDateTime.now().toString());
-        bookingMap.put("customer", booking.getCustomer());
-        return bookingMap;
-    }
 
     public List<Booking> getBookings(String uid) {
         try {

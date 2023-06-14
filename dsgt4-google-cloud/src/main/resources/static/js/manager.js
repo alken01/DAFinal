@@ -80,11 +80,11 @@ export class Manager extends Component {
         }
       }
     }
-
     this.setState({ bestCustomers, bookings, flights, seats });
   }
 
   render() {
+   console.log(this.state);
     return html`
       <div class="page">
         <div>

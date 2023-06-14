@@ -1,6 +1,9 @@
 package be.kuleuven.distributedsystems.cloud.entities;
 
 import com.google.gson.JsonObject;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 public class Ticket {
@@ -73,5 +76,16 @@ public class Ticket {
         ticketObject.addProperty("customer", email);
 
         return ticketObject;
+    }
+
+    public Map<String, Object> getTicketMap() {
+        Map<String, Object> ticketMap = new HashMap<>();
+        ticketMap.put("airline", airline);
+        ticketMap.put("bookingReference", bookingReference);
+        ticketMap.put("seatId", seatId.toString());
+        ticketMap.put("flightId", flightId.toString());
+        ticketMap.put("customer", customer);
+        ticketMap.put("status", "booked");
+        return ticketMap;
     }
 }

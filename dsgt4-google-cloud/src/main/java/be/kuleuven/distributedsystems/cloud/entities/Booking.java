@@ -4,7 +4,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public class Booking {
@@ -40,14 +42,16 @@ public class Booking {
         return this.customer;
     }
 
-    public JsonObject getJsonObject(String email){
+    public String getFormattedTime() {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+        return time.format(formatter);
+    }
+
+    public JsonObject getJsonObject(String email) {
         // Create a JSONObject for the booking
         JsonObject bookingObject = new JsonObject();
         bookingObject.addProperty("id", id.toString());
-
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
-        String formattedTime = time.format(formatter);
-        bookingObject.addProperty("time", formattedTime);
+        bookingObject.addProperty("time", getFormattedTime());
 
         // Create a JsonArray for the tickets
         JsonArray ticketsArray = new JsonArray();
@@ -55,10 +59,15 @@ public class Booking {
             JsonObject ticketObject = ticket.getJsonObject(email);
             ticketsArray.add(ticketObject);
         }
-
         bookingObject.addProperty("customer", email);
-
         bookingObject.add("tickets", ticketsArray);
         return bookingObject;
+    }
+
+    public Map<String, Object> getBookingMap() {
+        Map<String, Object> bookingMap = new HashMap<>();
+        bookingMap.put("time", getFormattedTime());
+        bookingMap.put("customer", customer);
+        return bookingMap;
     }
 }

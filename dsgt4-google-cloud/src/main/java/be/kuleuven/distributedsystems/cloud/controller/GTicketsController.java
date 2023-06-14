@@ -21,7 +21,6 @@ public class GTicketsController {
     private final FirestoreService firestoreService;
     private final ExternalAirlineService externalAirlineService;
 
-    @Autowired
     public GTicketsController(FirestoreService firestoreService, ExternalAirlineService externalAirlineService) {
         this.firestoreService = firestoreService;
         this.externalAirlineService = externalAirlineService;
@@ -80,37 +79,6 @@ public class GTicketsController {
         return ResponseEntity.ok(sortSeats(seatList).toString());
     }
 
-    private JsonObject sortSeats(JsonArray seatList) {
-        // group the seats based on type
-        Map<String, List<JsonObject>> seatsByType = new HashMap<>();
-        for (JsonElement seatElement : seatList) {
-            JsonObject seatObject = seatElement.getAsJsonObject();
-            String type = seatObject.get("type").getAsString();
-            // create a new list if the type is not yet in the map
-            if (!seatsByType.containsKey(type)) seatsByType.put(type, new ArrayList<>());
-            // add the seat to the list
-            seatsByType.get(type).add(seatObject);
-        }
-
-        // sort the seats within each type based on name
-        for (List<JsonObject> seats : seatsByType.values()) {
-            seats.sort(Comparator.comparing(seat -> seat.get("name").getAsString()));
-        }
-
-        // construct the final result in the requested format
-        JsonObject result = new JsonObject();
-        for (Map.Entry<String, List<JsonObject>> entry : seatsByType.entrySet()) {
-            JsonArray seatArray = new JsonArray();
-            // add all the seats to the array
-            for (JsonObject seat : entry.getValue()) {
-                seatArray.add(seat);
-            }
-            result.add(entry.getKey(), seatArray);
-        }
-        return result;
-    }
-
-
     @GetMapping("/getSeat")
     public ResponseEntity<String> getSeat(@RequestParam String airline,
                                           @RequestParam String flightId,
@@ -147,7 +115,7 @@ public class GTicketsController {
         }
 
         // get the bookings from the external airlines
-        //Booking externalBookingsArray = externalAirlineService.confirmQuotes(externalQuotes, email, bookingReference);
+        Booking bookings = externalAirlineService.confirmQuotes(externalQuotes, uid, bookingReference);
 
         // get the bookings from the internal airlines
         // Booking internalBookingsArray = firestoreService.confirmQuotes(internalQuotes, email, bookingReference);
@@ -158,7 +126,7 @@ public class GTicketsController {
         // System.arraycopy(internalBookingsArray, 0, bookings, externalBookingsArray.length, internalBookingsArray.length);
 
         // Save the booking in the firestore
-        // firestoreService.saveBooking(bookings, uid);
+        firestoreService.saveBooking(bookings, uid);
 
         // Return 200 OK
         return ResponseEntity.ok().build();
@@ -215,4 +183,34 @@ public class GTicketsController {
         return ResponseEntity.ok(customerArray.toString());
     }
 
+
+    private JsonObject sortSeats(JsonArray seatList) {
+        // group the seats based on type
+        Map<String, List<JsonObject>> seatsByType = new HashMap<>();
+        for (JsonElement seatElement : seatList) {
+            JsonObject seatObject = seatElement.getAsJsonObject();
+            String type = seatObject.get("type").getAsString();
+            // create a new list if the type is not yet in the map
+            if (!seatsByType.containsKey(type)) seatsByType.put(type, new ArrayList<>());
+            // add the seat to the list
+            seatsByType.get(type).add(seatObject);
+        }
+
+        // sort the seats within each type based on name
+        for (List<JsonObject> seats : seatsByType.values()) {
+            seats.sort(Comparator.comparing(seat -> seat.get("name").getAsString()));
+        }
+
+        // construct the final result in the requested format
+        JsonObject result = new JsonObject();
+        for (Map.Entry<String, List<JsonObject>> entry : seatsByType.entrySet()) {
+            JsonArray seatArray = new JsonArray();
+            // add all the seats to the array
+            for (JsonObject seat : entry.getValue()) {
+                seatArray.add(seat);
+            }
+            result.add(entry.getKey(), seatArray);
+        }
+        return result;
+    }
 }
