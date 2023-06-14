@@ -26,8 +26,7 @@ public class GTicketsController {
     private final String apiKey;
     private final HashMap<String, WebClient> airlineEndpoints = new HashMap<>();
     private final Gson gson = new Gson();
-
-    private FirestoreService firestoreService;
+    private final FirestoreService firestoreService;
 
     @Autowired
     public GTicketsController(FirestoreService firestoreService, WebClient.Builder webClientBuilder, @Value("${api.key}") String apiKey,
@@ -250,13 +249,6 @@ public class GTicketsController {
 
     @GetMapping("/getAllBookings")
     public ResponseEntity<String> getAllBookings() {
-        // Check if the user is a manager
-        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-        // if(!user.isManager()) {
-        //     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        // }
-
         // Get the bookings from the firestore
         List<Booking> bookings = firestoreService.getAllBookings();
 
@@ -272,13 +264,6 @@ public class GTicketsController {
 
     @GetMapping("/getBestCustomers")
     public ResponseEntity<String> getBestCustomers() {
-        // Check if the user is a manager
-        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-        // if(!user.isManager()) {
-        //     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        // }
-
         // Get the best customers
         List<String> customers = firestoreService.getBestCustomers();
 

@@ -4,13 +4,13 @@ import com.google.gson.JsonObject;
 
 public class User {
 
-    private String email;
+    private final String email;
     private String role;
 
     public User(String email, String role) {
         this.email = email;
-        this.role = role;
         if (this.role == null) this.role = "user";
+        else this.role = role;
     }
 
     public String getEmail() {

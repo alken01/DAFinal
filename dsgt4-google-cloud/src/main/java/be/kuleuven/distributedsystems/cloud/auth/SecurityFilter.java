@@ -31,11 +31,12 @@ public class SecurityFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
 
         try {
-            if (!header.startsWith("Bearer ")) {
+            if (header == null || !header.startsWith("Bearer") ) {
                 throw new ServletException("Invalid header"); // Throw exception for invalid header
             }
 
-            String token = header.substring(7); // Extract token from header, removing "Bearer "
+            // Extract token from header, removing "Bearer"
+            String token = header.split(" ")[1];
 
             // Decode the token
             DecodedJWT jwt = JWT.decode(token);
@@ -43,11 +44,6 @@ public class SecurityFilter extends OncePerRequestFilter {
             // Extract email and role from the token
             String email = jwt.getClaim("email").asString();
             String role = jwt.getClaim("role").asString(); // Adjust this according to your token structure
-
-            // Assign "customer" role if the role is null
-            if (role == null) {
-                role = "customer";
-            }
 
             // Set the authentication object to let the security context know that the user associated with the request is authenticated
             User user = new User(email, role);
@@ -65,8 +61,6 @@ public class SecurityFilter extends OncePerRequestFilter {
         }
         filterChain.doFilter(request, response);
     }
-
-
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -92,7 +86,7 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         @Override
         public Object getCredentials() {
-            return null;
+            return this.user;
         }
 
         @Override
@@ -117,7 +111,7 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         @Override
         public String getName() {
-            return null;
+            return this.user.getEmail();
         }
     }
 }
