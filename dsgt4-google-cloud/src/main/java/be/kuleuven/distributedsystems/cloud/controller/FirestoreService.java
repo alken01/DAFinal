@@ -119,24 +119,20 @@ public class FirestoreService {
 
     public List<Booking> getAllBookings() {
         try {
-            // Get the reference to the 'users' collection
-            CollectionReference usersRef = firestore.collection("users");
-
             // Create a list to store all bookings
             List<Booking> allBookings = new ArrayList<>();
 
+            // Get the reference to the 'users' collection
+            CollectionReference usersRef = firestore.collection("users");
             // Retrieve all user documents
-            ApiFuture<QuerySnapshot> usersSnapshotFuture = usersRef.get();
-            QuerySnapshot usersSnapshot = usersSnapshotFuture.get();
+            QuerySnapshot usersSnapshot = usersRef.get().get();
 
             // Iterate over each user document
             for (DocumentSnapshot userDoc : usersSnapshot.getDocuments()) {
                 // Get the 'bookings' subcollection of the current user document
                 CollectionReference bookingsRef = userDoc.getReference().collection("bookings");
-
                 // Retrieve all booking documents within the 'bookings' subcollection
-                ApiFuture<QuerySnapshot> bookingsSnapshotFuture = bookingsRef.get();
-                QuerySnapshot bookingsSnapshot = bookingsSnapshotFuture.get();
+                QuerySnapshot bookingsSnapshot = bookingsRef.get().get();
 
                 // Parse the bookings and add them to the list
                 List<Booking> userBookings = bookingsSnapshot.getDocuments().stream()
@@ -152,34 +148,25 @@ public class FirestoreService {
         }
     }
 
-
     public List<String> getBestCustomers() {
-        try {
-            // Get the bookings from the database
-            QuerySnapshot bookingsSnapshot = firestore.collection("bookings").get().get();
-            // Parse the bookings
-            List<Booking> bookings = bookingsSnapshot.getDocuments().stream()
-                    .map(this::parseBookingFromSnapshot).toList();
+        // Get the all bookings from the database
+        List<Booking> bookings = getAllBookings();
 
-            // Create a map of customers and their number of bookings
-            Map<String, Integer> customerBookings = new HashMap<>();
-            bookings.forEach(booking -> {
-                if (customerBookings.containsKey(booking.getCustomer())) {
-                    customerBookings.put(booking.getCustomer(), customerBookings.get(booking.getCustomer()) + 1);
-                } else {
-                    customerBookings.put(booking.getCustomer(), 1);
-                }
-            });
+        // Create a map of customers and their number of bookings
+        Map<String, Integer> customerBookings = new HashMap<>();
+        bookings.forEach(booking -> {
+            if (customerBookings.containsKey(booking.getCustomer())) {
+                customerBookings.put(booking.getCustomer(), customerBookings.get(booking.getCustomer()) + 1);
+            } else {
+                customerBookings.put(booking.getCustomer(), 1);
+            }
+        });
 
-            // Create a list of users
-            List<String> users = new ArrayList<>();
-            customerBookings.forEach((customer, role) -> users.add(customer));
+        // Create a list of users
+        List<String> users = new ArrayList<>();
+        customerBookings.forEach((customer, role) -> users.add(customer));
 
-            // Return the users
-            return users;
-        } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
-            return new ArrayList<>();
-        }
+        // Return the users
+        return users;
     }
 }
