@@ -2,10 +2,8 @@ package be.kuleuven.distributedsystems.cloud.controller;
 
 import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Ticket;
-import com.google.cloud.firestore.DocumentReference;
-import com.google.cloud.firestore.Firestore;
-import com.google.cloud.firestore.QueryDocumentSnapshot;
-import com.google.cloud.firestore.QuerySnapshot;
+import com.google.api.core.ApiFuture;
+import com.google.cloud.firestore.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,14 +20,17 @@ import java.util.stream.Collectors;
 public class FirestoreService {
 
     private final Firestore firestore;
+    private final String tempUID;
 
     @Autowired
     public FirestoreService(Firestore firestore) {
         this.firestore = firestore;
+        this.tempUID = "0jnFsjWIlROW9obwecphEoCPYsB2";
     }
 
     public void saveBooking(Booking booking) {
-        DocumentReference bookingRef = firestore.collection("bookings").document(booking.getId().toString());
+        DocumentReference userRef = firestore.collection("users").document(this.tempUID);
+        DocumentReference bookingRef = userRef.collection("bookings").document(booking.getId().toString());
 
         booking.getTickets().forEach(ticket -> {
             DocumentReference ticketRef = bookingRef.collection("tickets").document(ticket.getTicketId().toString());
@@ -57,10 +58,11 @@ public class FirestoreService {
         return bookingMap;
     }
 
-    public List<Booking> getBookings(String email) {
+    public List<Booking> getBookings() {
         try {
-            // Get the bookings from the database
-            QuerySnapshot bookingsSnapshot = firestore.collection("bookings").whereEqualTo("customer", email).get().get();
+            DocumentReference userRef = firestore.collection("users").document(this.tempUID);
+            QuerySnapshot bookingsSnapshot = userRef.collection("bookings").get().get();
+
             // Parse the bookings
             return bookingsSnapshot.getDocuments().stream()
                     .map(this::parseBookingFromSnapshot)
@@ -102,7 +104,7 @@ public class FirestoreService {
         return new Ticket(airline, flightId, seatId, ticketId, customer, bookingReference);
     }
 
-    public List<Booking> getAllBookings() {
+    public List<Booking> getAllBookingsOld() {
         try {
             // Get the bookings from the database
             QuerySnapshot bookingsSnapshot = firestore.collection("bookings").get().get();
@@ -115,6 +117,42 @@ public class FirestoreService {
             return new ArrayList<>();
         }
     }
+
+    public List<Booking> getAllBookings() {
+        try {
+            // Get the reference to the 'users' collection
+            CollectionReference usersRef = firestore.collection("users");
+
+            // Create a list to store all bookings
+            List<Booking> allBookings = new ArrayList<>();
+
+            // Retrieve all user documents
+            ApiFuture<QuerySnapshot> usersSnapshotFuture = usersRef.get();
+            QuerySnapshot usersSnapshot = usersSnapshotFuture.get();
+
+            // Iterate over each user document
+            for (DocumentSnapshot userDoc : usersSnapshot.getDocuments()) {
+                // Get the 'bookings' subcollection of the current user document
+                CollectionReference bookingsRef = userDoc.getReference().collection("bookings");
+
+                // Retrieve all booking documents within the 'bookings' subcollection
+                ApiFuture<QuerySnapshot> bookingsSnapshotFuture = bookingsRef.get();
+                QuerySnapshot bookingsSnapshot = bookingsSnapshotFuture.get();
+
+                // Parse the bookings and add them to the list
+                List<Booking> userBookings = bookingsSnapshot.getDocuments().stream()
+                        .map(this::parseBookingFromSnapshot)
+                        .collect(Collectors.toList());
+                allBookings.addAll(userBookings);
+            }
+
+            return allBookings;
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+    }
+
 
     public List<String> getBestCustomers() {
         try {
