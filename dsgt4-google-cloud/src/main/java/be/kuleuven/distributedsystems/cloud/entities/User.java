@@ -6,9 +6,11 @@ public class User {
 
     private final String email;
     private String role;
+    private String uid;
 
-    public User(String email, String role) {
+    public User(String email, String role, String uid) {
         this.email = email;
+        this.uid = uid;
         if (this.role == null) this.role = "user";
         else this.role = role;
     }
@@ -21,6 +23,9 @@ public class User {
         return role;
     }
 
+    public String getUid() {
+        return uid;
+    }
     public boolean isManager() {
         return this.role != null && this.role.equals("manager");
     }

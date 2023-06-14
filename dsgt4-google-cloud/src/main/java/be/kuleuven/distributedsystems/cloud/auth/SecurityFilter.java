@@ -44,9 +44,16 @@ public class SecurityFilter extends OncePerRequestFilter {
             // Extract email and role from the token
             String email = jwt.getClaim("email").asString();
             String role = jwt.getClaim("role").asString(); // Adjust this according to your token structure
+            String uid = jwt.getClaim("user_id").asString();
+
+            // Print all claims
+            //System.out.println("Claims in the JWT token:");
+            //for (String claimName : jwt.getClaims().keySet()) {
+            //    System.out.println(claimName + ": " + jwt.getClaim(claimName).asString());
+            //}
 
             // Set the authentication object to let the security context know that the user associated with the request is authenticated
-            User user = new User(email, role);
+            User user = new User(email, role, uid);
             SecurityContext context = SecurityContextHolder.getContext();
             context.setAuthentication(new FirebaseAuthentication(user));
 
