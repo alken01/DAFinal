@@ -100,6 +100,7 @@ public class GTicketsController {
         // Get the user uid and generate a booking reference
         User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String uid = user.getUid();
+        String email = user.getEmail();
         String bookingReference = UUID.randomUUID().toString();
 
         // seperate the quotes into internal and external
@@ -115,7 +116,7 @@ public class GTicketsController {
         }
 
         // get the bookings from the external airlines
-        Booking bookings = externalAirlineService.confirmQuotes(externalQuotes, uid, bookingReference);
+        Booking bookings = externalAirlineService.confirmQuotes(externalQuotes, email, bookingReference);
 
         // get the bookings from the internal airlines
         // Booking internalBookingsArray = firestoreService.confirmQuotes(internalQuotes, email, bookingReference);

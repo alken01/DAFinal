@@ -11,7 +11,7 @@ public class User {
     public User(String email, String role, String uid) {
         this.email = email;
         this.uid = uid;
-        if (this.role == null) this.role = "user";
+        if (role == null) {this.role = "user"; }
         else this.role = role;
     }
 
