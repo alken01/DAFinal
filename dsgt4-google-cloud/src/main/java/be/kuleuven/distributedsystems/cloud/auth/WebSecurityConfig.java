@@ -32,10 +32,11 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
                 .authorizeRequests()
+                .antMatchers("/api/getAllBookings", "/api/getBestCustomers").hasRole("manager")
                 .antMatchers("/api/**/*").authenticated()
-                .antMatchers("/api/getAllBookings", "/api/getBestCustomers").hasRole("manager") //only users with manager role got acces
                 .anyRequest().permitAll()
                 .and()
                 .addFilterBefore(this.securityFilter, UsernamePasswordAuthenticationFilter.class);
     }
+
 }

@@ -116,6 +116,7 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         }
 
+
         @Override
         public String getName() {
             return this.user.getEmail();

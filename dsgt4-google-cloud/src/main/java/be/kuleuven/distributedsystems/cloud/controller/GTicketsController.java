@@ -39,7 +39,7 @@ public class GTicketsController {
     public ResponseEntity<String> getFlight(@RequestParam String airline, @RequestParam String flightId) {
         JsonObject flightObject = new JsonObject();
         // check if the airline is external
-        if(externalAirlineService.isExternal(airline)) {
+        if (externalAirlineService.isExternal(airline)) {
             flightObject = externalAirlineService.getFlight(airline, flightId);
         }
         // TODO: else it is internal
@@ -53,7 +53,7 @@ public class GTicketsController {
         String[] flightTimes = new String[0];
 
         // check if the airline is external
-        if(externalAirlineService.isExternal(airline)) {
+        if (externalAirlineService.isExternal(airline)) {
             flightTimes = externalAirlineService.getFlightTimes(airline, flightId);
         }
         // TODO: else it is internal
@@ -70,7 +70,7 @@ public class GTicketsController {
         JsonArray seatList = new JsonArray();
 
         // check if the airline is external
-        if(externalAirlineService.isExternal(airline)) {
+        if (externalAirlineService.isExternal(airline)) {
             seatList = externalAirlineService.getAvailableSeats(airline, flightId, time);
         }
         // TODO: else it is internal
@@ -86,7 +86,7 @@ public class GTicketsController {
         JsonObject seatList = new JsonObject();
 
         // check if the airline is external
-        if(externalAirlineService.isExternal(airline)) {
+        if (externalAirlineService.isExternal(airline)) {
             seatList = externalAirlineService.getSeat(airline, flightId, seatId);
         }
         // TODO: else it is internal
@@ -107,7 +107,7 @@ public class GTicketsController {
         List<Quote> externalQuotes = new ArrayList<>();
 
         for (Quote quote : quotes) {
-            if(externalAirlineService.isExternal(quote.getAirline())) {
+            if (externalAirlineService.isExternal(quote.getAirline())) {
                 externalQuotes.add(quote);
             } else {
                 internalQuotes.add(quote);
@@ -196,9 +196,14 @@ public class GTicketsController {
             seatsByType.get(type).add(seatObject);
         }
 
-        // sort the seats within each type based on name
+        // sort the seats within each type based on seat number
         for (List<JsonObject> seats : seatsByType.values()) {
-            seats.sort(Comparator.comparing(seat -> seat.get("name").getAsString()));
+            seats.sort(Comparator.comparing(seat -> {
+                String seatNumber = seat.get("name").getAsString();
+                int number = Integer.parseInt(seatNumber.replaceAll("\\D+", ""));
+                String letter = seatNumber.replaceAll("\\d+", "");
+                return number * 100 + letter.charAt(0);
+            }));
         }
 
         // construct the final result in the requested format
