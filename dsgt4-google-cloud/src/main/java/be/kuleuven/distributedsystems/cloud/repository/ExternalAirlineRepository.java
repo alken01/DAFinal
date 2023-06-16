@@ -112,16 +112,16 @@ public class ExternalAirlineRepository {
         return stringArray;
     }
 
-    public Booking confirmQuotes(List<Quote> quotes, String email, String bookingReference) {
+    public Booking confirmQuotes(List<Quote> quotes, String email, String bookingReference, LocalDateTime time) {
         // Check if ALL the tickets are still available
         if (!ticketsAvailable(quotes)) return null;
 
         // Reserve all the tickets
-        return bookTickets(quotes, email, bookingReference);
+        return bookTickets(quotes, email, bookingReference, time);
     }
 
     // HELPER METHODS
-    private boolean ticketsAvailable(List<Quote> quotes) {
+    public boolean ticketsAvailable(List<Quote> quotes) {
         for (Quote quote : quotes) {
             // Get the URL to check if they are still available
             String getTicketURL = UriComponentsBuilder.fromPath("/flights/{flightId}/seats/{seatId}/ticket")
@@ -140,7 +140,7 @@ public class ExternalAirlineRepository {
         }
         return true;
     }
-    private Booking bookTickets(List<Quote> quotes, String email, String bookingReference) {
+    public Booking bookTickets(List<Quote> quotes, String email, String bookingReference, LocalDateTime time) {
         List<Ticket> tickets = new ArrayList<>();
         for (Quote quote : quotes) {
             // Get the URL
@@ -162,7 +162,7 @@ public class ExternalAirlineRepository {
             tickets.add(ticket);
         }
 
-        return new Booking(UUID.fromString(bookingReference), LocalDateTime.now(), tickets, email);
+        return new Booking(UUID.fromString(bookingReference), time, tickets, email);
     }
 
     private JsonObject getResponse(String endpoint, WebClient webClient) {

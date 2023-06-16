@@ -1,9 +1,7 @@
 package be.kuleuven.distributedsystems.cloud.service;
 
 import be.kuleuven.distributedsystems.cloud.auth.SecurityFilter;
-import be.kuleuven.distributedsystems.cloud.entities.Booking;
-import be.kuleuven.distributedsystems.cloud.entities.Quote;
-import be.kuleuven.distributedsystems.cloud.entities.User;
+import be.kuleuven.distributedsystems.cloud.entities.*;
 import be.kuleuven.distributedsystems.cloud.repository.ExternalAirlineRepository;
 import be.kuleuven.distributedsystems.cloud.repository.FirestoreRepository;
 import com.google.gson.JsonArray;
@@ -12,8 +10,8 @@ import com.google.gson.JsonObject;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -38,7 +36,7 @@ public class AirlineService {
     }
 
 
-    public JsonObject getFlight(@RequestParam String airline, @RequestParam String flightId) {
+    public JsonObject getFlight(String airline, String flightId) {
         JsonObject flightObject;
         if (externalAirlineRepository.isExternal(airline)) {
             flightObject = externalAirlineRepository.getFlight(airline, flightId);
@@ -49,7 +47,7 @@ public class AirlineService {
     }
 
 
-    public String[] getFlightTimes(@RequestParam String airline, @RequestParam String flightId) {
+    public String[] getFlightTimes(String airline, String flightId) {
         String[] flightTimes;
         if (externalAirlineRepository.isExternal(airline)) {
             flightTimes = externalAirlineRepository.getFlightTimes(airline, flightId);
@@ -61,9 +59,7 @@ public class AirlineService {
         return flightTimes;
     }
 
-    public JsonObject getAvailableSeats(@RequestParam String airline,
-                                        @RequestParam String flightId,
-                                        @RequestParam String time) {
+    public JsonObject getAvailableSeats(String airline, String flightId, String time) {
         JsonArray seatList;
         if (externalAirlineRepository.isExternal(airline)) {
             seatList = externalAirlineRepository.getAvailableSeats(airline, flightId, time);
@@ -74,9 +70,7 @@ public class AirlineService {
         return sortSeats(seatList);
     }
 
-    public JsonObject getSeat(@RequestParam String airline,
-                              @RequestParam String flightId,
-                              @RequestParam String seatId) {
+    public JsonObject getSeat(String airline,String flightId, String seatId) {
         JsonObject seatList;
         if (externalAirlineRepository.isExternal(airline)) {
             seatList = externalAirlineRepository.getSeat(airline, flightId, seatId);
@@ -87,11 +81,15 @@ public class AirlineService {
     }
 
 
-    public boolean confirmQuotes(@RequestBody Quote[] quotes) {
+    public boolean confirmQuotes(Quote[] quotes) {
+        System.out.println("Confirming quotes");
         // Get the user uid and generate a booking reference
         User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String uid = user.getUid();
+        String email = user.getEmail();
         String bookingReference = UUID.randomUUID().toString();
+
+        LocalDateTime time = LocalDateTime.now();
 
         // separate the quotes into internal and external
         List<Quote> internalQuotes = new ArrayList<>();
@@ -105,19 +103,24 @@ public class AirlineService {
             }
         }
 
-        // get the bookings from the external airlines
-        Booking bookings = externalAirlineRepository.confirmQuotes(externalQuotes, uid, bookingReference);
+        // get the bookings from the airlines
+        Booking externalBookings = externalAirlineRepository.confirmQuotes(externalQuotes, uid, bookingReference, time);
+        Booking internalBookings = firestoreRepository.confirmQuotes(internalQuotes, uid, bookingReference, time);
 
-        // get the bookings from the internal airlines
-        // Booking internalBookingsArray = firestoreRepository.confirmQuotes(internalQuotes, email, bookingReference);
+        // get all the tickets
+        List<Ticket> tickets = externalBookings.getTickets();
+        try {
+            tickets.addAll(internalBookings.getTickets());
+        } catch (NullPointerException e) {
+            // no internal bookings
+            System.out.println("No internal bookings");
+        }
 
-        // combine the bookings
-        // Booking[] bookings = new Booking[externalBookingsArray.length + internalBookingsArray.length];
-        // System.arraycopy(externalBookingsArray, 0, bookings, 0, externalBookingsArray.length);
-        // System.arraycopy(internalBookingsArray, 0, bookings, externalBookingsArray.length, internalBookingsArray.length);
+        // create a new booking with the tickets
+        Booking booking = new Booking(UUID.fromString(bookingReference), time, tickets, email);
 
         // Save the booking in the firestore
-        firestoreRepository.saveBooking(bookings, uid);
+        firestoreRepository.saveBooking(booking, uid);
 
         // Return 200 OK
         return true;
