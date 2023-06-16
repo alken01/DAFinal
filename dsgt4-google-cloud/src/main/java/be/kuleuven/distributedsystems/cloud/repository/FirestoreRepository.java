@@ -27,7 +27,6 @@ public class FirestoreRepository {
     private final String AIRLINE_COLLECTION = "airline";
     private final String FLIGHTS_AIRLINE_COLLECTION = "flights";
     private final String SEATS_COLLECTION = "seats";
-
     private final String INTERNAL_AIRLINE_DATA = "src/main/resources/data.json";
 
     private final CollectionReference usersRef;
@@ -290,9 +289,7 @@ public class FirestoreRepository {
 
         // Create a map of customers and their number of bookings
         Map<String, Integer> customerBookings = new HashMap<>();
-        bookings.forEach(booking -> {
-            customerBookings.merge(booking.getCustomer(), 1, Integer::sum);
-        });
+        bookings.forEach(booking -> customerBookings.merge(booking.getCustomer(), 1, Integer::sum));
         return new ArrayList<>(customerBookings.keySet());
     }
 

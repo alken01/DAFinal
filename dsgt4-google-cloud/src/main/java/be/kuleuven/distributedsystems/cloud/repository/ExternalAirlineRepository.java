@@ -9,7 +9,6 @@ import com.google.gson.JsonParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
-import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
@@ -177,7 +176,9 @@ public class ExternalAirlineRepository {
                         .retrieve()
                         .bodyToMono(String.class)
                         .block();
-                return JsonParser.parseString(response).getAsJsonObject();
+                if (response != null) {
+                    return JsonParser.parseString(response).getAsJsonObject();
+                }
             } catch (Exception e) {
                 // Wait before making the next retry
                 try {
