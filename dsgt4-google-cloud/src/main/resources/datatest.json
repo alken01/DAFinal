@@ -1,0 +1,60 @@
+{
+  "flights": [
+    {
+      "name": "Tortola",
+      "location": "BRU - EIS",
+      "image": "/tortola.jpg",
+      "seats": [
+        {
+          "time": "2022-12-01T11:55:00",
+          "type": "First",
+          "name": "1A",
+          "price": 7686
+        },
+        {
+          "time": "2022-12-01T11:55:00",
+          "type": "First",
+          "name": "2A",
+          "price": 7686
+        },
+        {
+          "time": "2022-12-01T11:55:00",
+          "type": "First",
+          "name": "1B",
+          "price": 7686
+        }
+      ]
+    },
+    {
+      "name": "Hong Kong",
+      "location": "BRU - HKG",
+      "image": "/hongkong.jpg",
+      "seats": [
+        {
+          "time": "2022-12-01T14:55:00",
+          "type": "First",
+          "name": "1A",
+          "price": 4226
+        },
+        {
+          "time": "2022-12-01T14:55:00",
+          "type": "First",
+          "name": "2A",
+          "price": 4226
+        },
+        {
+          "time": "2022-12-01T14:55:00",
+          "type": "First",
+          "name": "1B",
+          "price": 4226
+        },
+        {
+          "time": "2022-12-01T14:55:00",
+          "type": "First",
+          "name": "2B",
+          "price": 4226
+        }
+      ]
+    }
+  ]
+}

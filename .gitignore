@@ -41,3 +41,4 @@ gs://bucket-name/
 google-cloud.json
 .vscode/settings.json
 dsgt4-google-cloud/src/main/resources/firebase.json
+**/.DS_Store

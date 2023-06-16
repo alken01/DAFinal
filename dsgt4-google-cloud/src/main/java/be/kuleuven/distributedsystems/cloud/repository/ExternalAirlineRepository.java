@@ -1,4 +1,4 @@
-package be.kuleuven.distributedsystems.cloud.service;
+package be.kuleuven.distributedsystems.cloud.repository;
 
 import be.kuleuven.distributedsystems.cloud.entities.Booking;
 import be.kuleuven.distributedsystems.cloud.entities.Quote;
@@ -8,6 +8,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -16,8 +17,8 @@ import reactor.core.publisher.Mono;
 import java.time.LocalDateTime;
 import java.util.*;
 
-@Service
-public class ExternalAirlineService {
+@Repository
+public class ExternalAirlineRepository {
 
     private final int MAX_RETRIES = 5;
     private final int WAIT_MS = 100;
@@ -25,7 +26,7 @@ public class ExternalAirlineService {
     private final HashMap<String, WebClient> airlineEndpoints = new HashMap<>();
 
     @Autowired
-    public ExternalAirlineService(WebClient.Builder webClientBuilder, @Value("${api.key}") String apiKey,
+    public ExternalAirlineRepository(WebClient.Builder webClientBuilder, @Value("${api.key}") String apiKey,
                                   @Value("${airline.endpoints}") String[] airlineEndpointsConfig) {
         // initialize the webclients for the airlines from the application.properties
         for (String airline : airlineEndpointsConfig) {
@@ -47,11 +48,9 @@ public class ExternalAirlineService {
                 .toUriString();
 
         // get the seats from the URL
-        JsonArray seatList = getResponse(seatsURL, airlineEndpoints.get(airline))
+        return getResponse(seatsURL, airlineEndpoints.get(airline))
                 .getAsJsonObject("_embedded")
                 .getAsJsonArray("seats");
-
-        return seatList;
     }
 
     public JsonArray getFlights() {
@@ -82,14 +81,6 @@ public class ExternalAirlineService {
         return getResponse(url, airlineEndpoints.get(airline));
     }
 
-    public Booking confirmQuotes(List<Quote> quotes, String email, String bookingReference) {
-        // Check if ALL the tickets are still available
-        if (!ticketsAvailable(quotes)) return null;
-
-        // Reserve all the tickets
-        return bookTickets(quotes, email, bookingReference);
-    }
-
     public JsonObject getFlight(String airline, String flightId) {
         // get the url
         String flightURL = UriComponentsBuilder.fromPath("/flights/{flightId}")
@@ -100,7 +91,6 @@ public class ExternalAirlineService {
         // get the flight from the url
         return getResponse(flightURL, airlineEndpoints.get(airline));
     }
-
 
     public String[] getFlightTimes(String airline, String flightId) {
         // get the url
@@ -122,8 +112,15 @@ public class ExternalAirlineService {
         return stringArray;
     }
 
-        // HELPER METHODS
+    public Booking confirmQuotes(List<Quote> quotes, String email, String bookingReference) {
+        // Check if ALL the tickets are still available
+        if (!ticketsAvailable(quotes)) return null;
 
+        // Reserve all the tickets
+        return bookTickets(quotes, email, bookingReference);
+    }
+
+    // HELPER METHODS
     private boolean ticketsAvailable(List<Quote> quotes) {
         for (Quote quote : quotes) {
             // Get the URL to check if they are still available
@@ -143,7 +140,6 @@ public class ExternalAirlineService {
         }
         return true;
     }
-
     private Booking bookTickets(List<Quote> quotes, String email, String bookingReference) {
         List<Ticket> tickets = new ArrayList<>();
         for (Quote quote : quotes) {
@@ -196,7 +192,6 @@ public class ExternalAirlineService {
         System.out.println("GET: Falling back to empty response for " + endpoint);
         return new JsonObject();
     }
-
     private void putRequest(String endpoint, WebClient webClient, JsonObject requestBody) {
         // Backoff retry mechanism
         for (int retries = 0; retries < MAX_RETRIES; retries++) {
@@ -226,5 +221,4 @@ public class ExternalAirlineService {
     public boolean isExternal(String airline) {
         return airlineEndpoints.containsKey(airline);
     }
-
 }
