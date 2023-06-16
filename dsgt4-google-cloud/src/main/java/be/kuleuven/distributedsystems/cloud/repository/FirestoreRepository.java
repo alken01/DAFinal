@@ -30,23 +30,25 @@ public class FirestoreRepository {
 
     private final String INTERNAL_AIRLINE_DATA = "src/main/resources/datatest.json";
 
+    private final CollectionReference usersRef;
+    private final CollectionReference internalFlightsRef;
+
     @Autowired
     public FirestoreRepository(Firestore firestore){
         // initialize the firestore
         this.firestore = firestore;
+        // get the collections
+        usersRef = firestore.collection(USER_COLLECTION);
+        internalFlightsRef = firestore.collection(AIRLINE_COLLECTION)
+                .document(INTERNAL_AIRLINE_COLLECTION)
+                .collection(FLIGHTS_AIRLINE_COLLECTION);
 
         // load the internal airline data
         loadInternalAirlineData();
     }
 
-    public void loadInternalAirlineData(){
-        // get the internal airline collection
-        CollectionReference internalFlightsRef = firestore.collection(AIRLINE_COLLECTION)
-                .document(INTERNAL_AIRLINE_COLLECTION)
-                .collection(FLIGHTS_AIRLINE_COLLECTION);
-
+    public void loadInternalAirlineData() {
         System.out.println("Loading Internal Airline into Firestore");
-
         // read the json file
         ObjectMapper mapper = new ObjectMapper();
         JsonNode data;
@@ -59,8 +61,21 @@ public class FirestoreRepository {
 
         // load the data
         for (JsonNode flightNode : data.get("flights")) {
+            // check if flight with this name already exists
+            try {
+                Query query = internalFlightsRef.whereEqualTo("name", flightNode.get("name").asText());
+                List<QueryDocumentSnapshot> documents = query.get().get().getDocuments();
+                if (!documents.isEmpty()) {
+                    System.out.println("Flight with name " + flightNode.get("name").asText() + " already exists");
+                    continue;
+                }
+            } catch (Exception e) {
+                System.out.println("Error while checking if flight already exists");
+            }
+
             // create the flight document
-            DocumentReference flightDoc = createFlightDocument(flightNode, internalFlightsRef);
+            UUID flightUUID = UUID.randomUUID();
+            DocumentReference flightDoc = createFlightDocument(flightNode, flightUUID);
             // create the seats
             for (JsonNode seatNode : flightNode.get(SEATS_COLLECTION)) {
                 createSeatDocument(seatNode, flightDoc);
@@ -68,10 +83,9 @@ public class FirestoreRepository {
         }
     }
 
-    private DocumentReference createFlightDocument(JsonNode flightNode, CollectionReference internalAirlineRef) {
+    private DocumentReference createFlightDocument(JsonNode flightNode, UUID flightUUID) {
         // create a new flight document
-        UUID flightUUID = UUID.randomUUID();
-        DocumentReference airlineDoc = internalAirlineRef.document(flightUUID.toString());
+        DocumentReference airlineDoc = internalFlightsRef.document(flightUUID.toString());
 
         // create the flight map
         Map<String, String> flightMap = new HashMap<>();
@@ -104,8 +118,7 @@ public class FirestoreRepository {
 
     // INTERNAL AIRLINE METHODS
     public JsonArray getFlights(){
-        CollectionReference flightsRef = firestore.collection(INTERNAL_AIRLINE_COLLECTION);
-        ApiFuture<QuerySnapshot> querySnapshot = flightsRef.get();
+        ApiFuture<QuerySnapshot> querySnapshot = internalFlightsRef.get();
         List<QueryDocumentSnapshot> documents = null;
         try {
             documents = querySnapshot.get().getDocuments();
@@ -129,7 +142,7 @@ public class FirestoreRepository {
     }
 
     public JsonObject getFlight(String flightId) {
-        DocumentReference flightRef = firestore.collection(INTERNAL_AIRLINE_COLLECTION).document(flightId);
+        DocumentReference flightRef = internalFlightsRef.document(flightId);
         ApiFuture<DocumentSnapshot> documentSnapshot = flightRef.get();
         DocumentSnapshot snapshot;
         try {
@@ -139,21 +152,18 @@ public class FirestoreRepository {
             return new JsonObject();
         }
 
-        if (snapshot.exists()) {
-            JsonObject flightObject = new JsonObject();
-            flightObject.addProperty("flightId", snapshot.getId());
-            flightObject.addProperty("name", snapshot.getString("name"));
-            flightObject.addProperty("location", snapshot.getString("location"));
-            flightObject.addProperty("image", snapshot.getString("image"));
-            return flightObject;
-        }
-        // Flight document not found
-        return new JsonObject();
+        JsonObject flightObject = new JsonObject();
+        flightObject.addProperty("airline", INTERNAL_AIRLINE_COLLECTION);
+        flightObject.addProperty("flightId", snapshot.getId());
+        flightObject.addProperty("name", snapshot.getString("name"));
+        flightObject.addProperty("location", snapshot.getString("location"));
+        flightObject.addProperty("image", snapshot.getString("image"));
+        return flightObject;
     }
 
 
     public String[] getFlightTimes(String flightId){
-        CollectionReference seatsRef = firestore.collection(INTERNAL_AIRLINE_COLLECTION).document(flightId).collection(SEATS_COLLECTION);
+        CollectionReference seatsRef = internalFlightsRef.document(flightId).collection(SEATS_COLLECTION);
         ApiFuture<QuerySnapshot> querySnapshot = seatsRef.select("time").get();
         List<QueryDocumentSnapshot> documents;
         try {
@@ -176,7 +186,7 @@ public class FirestoreRepository {
     }
 
     public JsonArray getAvailableSeats(String flightId, String time){
-        CollectionReference seatsRef = firestore.collection(INTERNAL_AIRLINE_COLLECTION).document(flightId).collection(SEATS_COLLECTION);
+        CollectionReference seatsRef = internalFlightsRef.document(flightId).collection(SEATS_COLLECTION);
         Query query = seatsRef.whereEqualTo("time", time)
                 .whereEqualTo("bookingReference", "");
 
@@ -207,7 +217,7 @@ public class FirestoreRepository {
 
 
     public JsonObject getSeat(String flightId, String seatId) {
-        DocumentReference seatRef = firestore.collection(INTERNAL_AIRLINE_COLLECTION).document(flightId)
+        DocumentReference seatRef = internalFlightsRef.document(flightId)
                 .collection(SEATS_COLLECTION).document(seatId);
         ApiFuture<DocumentSnapshot> documentSnapshot = seatRef.get();
         DocumentSnapshot snapshot;
@@ -238,8 +248,7 @@ public class FirestoreRepository {
 
     // BOOKING METHODS
     public void saveBooking(Booking booking, String uid) {
-        DocumentReference userRef = firestore.collection(USER_COLLECTION).document(uid);
-        DocumentReference bookingRef = userRef.collection(BOOKING_COLLECTION).document(booking.getId().toString());
+        DocumentReference bookingRef = usersRef.document(uid).collection(BOOKING_COLLECTION).document(booking.getId().toString());
 
         booking.getTickets().forEach(ticket -> {
             DocumentReference ticketRef = bookingRef.collection("tickets").document(ticket.getTicketId().toString());
@@ -300,8 +309,6 @@ public class FirestoreRepository {
             // Create a list to store all bookings
             List<Booking> allBookings = new ArrayList<>();
 
-            // Get the reference to the 'users' collection
-            CollectionReference usersRef = firestore.collection(USER_COLLECTION);
             // Retrieve all user documents
             QuerySnapshot usersSnapshot = usersRef.get().get();
 
