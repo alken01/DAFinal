@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Repository
-public class ExternalAirlineRepository {
+public class ExternalAirlineRepository implements AirlineRepository{
 
     private final int MAX_RETRIES = 5;
     private final int WAIT_MS = 100;
@@ -37,21 +37,12 @@ public class ExternalAirlineRepository {
         this.apiKey = apiKey;
     }
 
-    public JsonArray getAvailableSeats(String airline, String flightId, String time) {
-        // get the URL
-        String seatsURL = UriComponentsBuilder.fromPath("/flights/{flightId}/seats")
-                .queryParam("time", time)
-                .queryParam("available", "true")
-                .queryParam("key", apiKey)
-                .buildAndExpand(flightId)
-                .toUriString();
-
-        // get the seats from the URL
-        return getResponse(seatsURL, airlineEndpoints.get(airline))
-                .getAsJsonObject("_embedded")
-                .getAsJsonArray("seats");
+    @Override
+    public boolean containsAirline(String airline) {
+        return airlineEndpoints.containsKey(airline);
     }
 
+    @Override
     public JsonArray getFlights() {
         // get the url
         String endpoint = UriComponentsBuilder.fromPath("/flights")
@@ -69,17 +60,7 @@ public class ExternalAirlineRepository {
         return flightsArray;
     }
 
-    public JsonObject getSeat(String airline, String flightId, String seatId) {
-        // get the seat url
-        String url = UriComponentsBuilder.fromPath("/flights/{flightId}/seats/{seatId}")
-                .queryParam("key", apiKey)
-                .buildAndExpand(flightId, seatId)
-                .toUriString();
-
-        // get the seat from the url
-        return getResponse(url, airlineEndpoints.get(airline));
-    }
-
+    @Override
     public JsonObject getFlight(String airline, String flightId) {
         // get the url
         String flightURL = UriComponentsBuilder.fromPath("/flights/{flightId}")
@@ -91,6 +72,7 @@ public class ExternalAirlineRepository {
         return getResponse(flightURL, airlineEndpoints.get(airline));
     }
 
+    @Override
     public String[] getFlightTimes(String airline, String flightId) {
         // get the url
         String timeURL = UriComponentsBuilder.fromPath("/flights/{flightId}/times")
@@ -111,6 +93,36 @@ public class ExternalAirlineRepository {
         return stringArray;
     }
 
+    @Override
+    public JsonArray getAvailableSeats(String airline, String flightId, String time) {
+        // get the URL
+        String seatsURL = UriComponentsBuilder.fromPath("/flights/{flightId}/seats")
+                .queryParam("time", time)
+                .queryParam("available", "true")
+                .queryParam("key", apiKey)
+                .buildAndExpand(flightId)
+                .toUriString();
+
+        // get the seats from the URL
+        return getResponse(seatsURL, airlineEndpoints.get(airline))
+                .getAsJsonObject("_embedded")
+                .getAsJsonArray("seats");
+    }
+
+    @Override
+    public JsonObject getSeat(String airline, String flightId, String seatId) {
+        // get the seat url
+        String url = UriComponentsBuilder.fromPath("/flights/{flightId}/seats/{seatId}")
+                .queryParam("key", apiKey)
+                .buildAndExpand(flightId, seatId)
+                .toUriString();
+
+        // get the seat from the url
+        return getResponse(url, airlineEndpoints.get(airline));
+    }
+
+
+    @Override
     public Booking confirmQuotes(List<Quote> quotes, String email, String bookingReference, LocalDateTime time) {
         // Check if ALL the tickets are still available
         if (!ticketsAvailable(quotes)) return null;
@@ -119,7 +131,7 @@ public class ExternalAirlineRepository {
         return bookTickets(quotes, email, bookingReference, time);
     }
 
-    // HELPER METHODS
+    @Override
     public boolean ticketsAvailable(List<Quote> quotes) {
         for (Quote quote : quotes) {
             // Get the URL to check if they are still available
@@ -139,6 +151,8 @@ public class ExternalAirlineRepository {
         }
         return true;
     }
+
+    @Override
     public Booking bookTickets(List<Quote> quotes, String email, String bookingReference, LocalDateTime time) {
         List<Ticket> tickets = new ArrayList<>();
         for (Quote quote : quotes) {
@@ -164,6 +178,7 @@ public class ExternalAirlineRepository {
         return new Booking(UUID.fromString(bookingReference), time, tickets, email);
     }
 
+    // HELPER METHODS
     private JsonObject getResponse(String endpoint, WebClient webClient) {
         if (webClient == null || endpoint == null) return new JsonObject();
 
@@ -219,7 +234,4 @@ public class ExternalAirlineRepository {
         System.out.println("PUT: Failed to update the ticket after multiple retries.");
     }
 
-    public boolean isExternal(String airline) {
-        return airlineEndpoints.containsKey(airline);
-    }
 }

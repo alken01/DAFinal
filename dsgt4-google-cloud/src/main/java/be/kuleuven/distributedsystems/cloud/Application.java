@@ -23,14 +23,9 @@ import java.util.Objects;
 @SpringBootApplication
 public class Application {
 
-    @SuppressWarnings("unchecked")
     public static void main(String[] args) throws IOException {
         System.setProperty("server.port", System.getenv().getOrDefault("PORT", "8080"));
-
         ApplicationContext context = SpringApplication.run(Application.class, args);
-
-        // TODO: (level 2) load this data into Firestore
-        // String data = new String(new ClassPathResource("data.json").getInputStream().readAllBytes());
     }
 
     @Bean
