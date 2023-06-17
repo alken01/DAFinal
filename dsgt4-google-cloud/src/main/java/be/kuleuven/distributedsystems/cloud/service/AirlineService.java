@@ -130,6 +130,7 @@ public class AirlineService {
 
         // Get the bookings from the firestore
         List<Booking> bookings = firestoreRepository.getBookings(uid);
+        //TODO: sort them
 
         // make a booking json array and add all the bookings to it
         JsonArray bookingArray = new JsonArray();
@@ -163,6 +164,7 @@ public class AirlineService {
         // only the emails are needed
         JsonArray customerArray = new JsonArray();
         for (String customer : customers) {
+            System.out.println(customer);
             customerArray.add(customer);
         }
 

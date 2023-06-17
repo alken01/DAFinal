@@ -169,6 +169,8 @@ public class FirestoreRepository {
         // Create a map of customers and their number of bookings
         Map<String, Integer> customerBookings = new HashMap<>();
         bookings.forEach(booking -> customerBookings.merge(booking.getCustomer(), 1, Integer::sum));
+        // TODO: Sort
+
         return new ArrayList<>(customerBookings.keySet());
     }
 

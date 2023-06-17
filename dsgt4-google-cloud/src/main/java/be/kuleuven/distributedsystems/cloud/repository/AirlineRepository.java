@@ -16,6 +16,4 @@ public interface AirlineRepository{
     JsonArray getAvailableSeats(String airline, String flightId, String time);
     JsonObject getSeat(String airline, String flightId, String seatId);
     Booking confirmQuotes(List<Quote> quotes, String email, String bookingReference, LocalDateTime time);
-    boolean ticketsAvailable(List<Quote> quotes);
-    Booking bookTickets(List<Quote> quotes, String email, String bookingReference, LocalDateTime time);
 }

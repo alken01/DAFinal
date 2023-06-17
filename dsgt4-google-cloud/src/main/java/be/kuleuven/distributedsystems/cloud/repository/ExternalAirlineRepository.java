@@ -131,7 +131,6 @@ public class ExternalAirlineRepository implements AirlineRepository{
         return bookTickets(quotes, email, bookingReference, time);
     }
 
-    @Override
     public boolean ticketsAvailable(List<Quote> quotes) {
         for (Quote quote : quotes) {
             // Get the URL to check if they are still available
@@ -152,7 +151,6 @@ public class ExternalAirlineRepository implements AirlineRepository{
         return true;
     }
 
-    @Override
     public Booking bookTickets(List<Quote> quotes, String email, String bookingReference, LocalDateTime time) {
         List<Ticket> tickets = new ArrayList<>();
         for (Quote quote : quotes) {

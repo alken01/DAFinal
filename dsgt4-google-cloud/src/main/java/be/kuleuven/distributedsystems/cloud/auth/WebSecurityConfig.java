@@ -32,7 +32,6 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
                 .authorizeRequests()
-                .antMatchers("/api/getAllBookings", "/api/getBestCustomers").hasRole("manager")
                 .antMatchers("/api/**/*").authenticated()
                 .anyRequest().permitAll()
                 .and()

@@ -1,8 +1,10 @@
 package be.kuleuven.distributedsystems.cloud.controller;
 import be.kuleuven.distributedsystems.cloud.entities.Quote;
+import be.kuleuven.distributedsystems.cloud.entities.User;
 import be.kuleuven.distributedsystems.cloud.service.AirlineService;
 import com.google.gson.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -67,12 +69,23 @@ public class GTicketsController {
     // MANAGER METHODS
     @GetMapping("/getAllBookings")
     public ResponseEntity<String> getAllBookings() {
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if(!user.isManager()) {
+            // TODO: change this to forbidden
+            return ResponseEntity.ok("");
+        }
+
         JsonArray bookings = airlineService.getAllBookings();
         return ResponseEntity.ok(bookings.toString());
     }
 
     @GetMapping("/getBestCustomers")
     public ResponseEntity<String> getBestCustomers() {
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if(!user.isManager()) {
+            // TODO: change this to forbidden
+            return ResponseEntity.ok("");
+        }
         JsonArray customers = airlineService.getBestCustomers();
         return ResponseEntity.ok(customers.toString());
     }
